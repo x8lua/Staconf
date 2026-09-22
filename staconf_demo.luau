@@ -22,7 +22,7 @@ local function cleanupExisting()
 	end
 	for _, parent in ipairs(targets) do
 		for _, child in ipairs(parent:GetChildren()) do
-			if child.Name == "StacOnf" or child.Name == "Cascade" then
+			if child.Name == "StacOnf" or child.Name == "Cascade" or child.Name == "StacOnfNotifications" then
 				pcall(function()
 					child:Destroy()
 				end)
@@ -98,6 +98,223 @@ local window = app:Window({
 	Dropshadow = true,
 	UIBlur = true,
 })
+
+
+local function createNotificationCenter(owner, parent)
+	local gui = Instance.new("ScreenGui")
+	gui.Name = "StacOnfNotifications"
+	gui.ResetOnSpawn = false
+	gui.DisplayOrder = 1000
+	gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+	gui.ScreenInsets = Enum.ScreenInsets.CoreUISafeInsets
+	gui.ClipToDeviceSafeArea = true
+	gui.Parent = parent
+	local host = Instance.new("Frame")
+	host.Name = "TopRightNotifications"
+	host.BackgroundTransparency = 1
+	host.AnchorPoint = Vector2.new(1, 0)
+	host.Position = UDim2.new(1, -16, 0, 14)
+	host.Size = UDim2.new(1, -32, 1, -28)
+	host.Parent = gui
+	local limit = Instance.new("UISizeConstraint")
+	limit.MaxSize = Vector2.new(414, 10000)
+	limit.Parent = host
+	local alive = true
+	local entries = {}
+	local connections = {}
+	local tweens = {}
+	local timers = {}
+	local function connect(signal, callback)
+		local connection = signal:Connect(callback)
+		table.insert(connections, connection)
+		return connection
+	end
+	local function later(seconds, callback)
+		local thread
+		thread = task.delay(seconds, function()
+			timers[thread] = nil
+			if alive then callback() end
+		end)
+		timers[thread] = true
+		return thread
+	end
+	local function stopTween(object)
+		local active = tweens[object]
+		if active then
+			active.connection:Disconnect()
+			active.tween:Cancel()
+			active.tween:Destroy()
+			tweens[object] = nil
+		end
+	end
+	local function animate(object, duration, goals)
+		stopTween(object)
+		local tween = tweenService:Create(object, TweenInfo.new(duration, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), goals)
+		local connection
+		connection = tween.Completed:Connect(function()
+			connection:Disconnect()
+			if tweens[object] and tweens[object].tween == tween then tweens[object] = nil end
+			tween:Destroy()
+		end)
+		tweens[object] = { tween = tween, connection = connection }
+		tween:Play()
+	end
+	local function measure(entry)
+		local width = math.max(120, host.AbsoluteSize.X - 86)
+		local ok, bounds = pcall(function()
+			local params = Instance.new("GetTextBoundsParams")
+			params.Text = entry.body.Text
+			params.Font = entry.body.FontFace
+			params.Size = 15
+			params.Width = width
+			local textService = game:GetService("TextService") :: TextService
+			local result = textService:GetTextBoundsAsync(params)
+			params:Destroy()
+			return result
+		end)
+		if not alive or entry.removed then return end
+		local bodyHeight = math.clamp(ok and bounds.Y or 40, 20, 100)
+		entry.height = 68 + bodyHeight
+		entry.body.Size = UDim2.new(1, -86, 0, bodyHeight)
+		entry.card.Size = UDim2.new(1, 0, 0, entry.height)
+	end
+	local function arrange()
+		local y = 0
+		for _, entry in ipairs(entries) do
+			entry.y = y
+			animate(entry.card, 0.28, { Position = UDim2.fromOffset(0, y), GroupTransparency = 0 })
+			y += entry.height + 10
+		end
+	end
+	local function dispose(entry)
+		if entry.disposed then return end
+		entry.disposed = true
+		stopTween(entry.card)
+		entry.card:Destroy()
+	end
+	local function dismiss(entry, instant)
+		if entry.removed then return end
+		entry.removed = true
+		if entry.timer then
+			pcall(task.cancel, entry.timer)
+			timers[entry.timer] = nil
+			entry.timer = nil
+		end
+		local index = table.find(entries, entry)
+		if index then table.remove(entries, index) end
+		if instant then
+			dispose(entry)
+		else
+			animate(entry.card, 0.22, { Position = UDim2.new(1, 24, 0, entry.y or 0), GroupTransparency = 1 })
+			later(0.24, function() dispose(entry) end)
+		end
+		arrange()
+	end
+	local function textLabel(parentObject, name, text, size, weight, position)
+		local label = Instance.new("TextLabel")
+		label.Name = name
+		label.BackgroundTransparency = 1
+		label.FontFace = Font.new("rbxassetid://12187365364", weight)
+		label.Text = text
+		label.TextSize = size
+		label.TextColor3 = Color3.fromRGB(32, 43, 51)
+		label.TextXAlignment = Enum.TextXAlignment.Left
+		label.TextYAlignment = Enum.TextYAlignment.Top
+		label.RichText = false
+		label.Position = position
+		label.Size = UDim2.new(1, -86, 0, 19)
+		label.TextTruncate = Enum.TextTruncate.AtEnd
+		label.Parent = parentObject
+		return label
+	end
+	local function notify(options)
+		if not alive then return end
+		options = options or {}
+		local capacity = math.clamp(math.floor(host.AbsoluteSize.Y / 178), 1, 3)
+		while #entries >= capacity do dismiss(entries[1], true) end
+		local card = Instance.new("CanvasGroup")
+		card.Name = "Notification"
+		card.BackgroundColor3 = Color3.fromRGB(201, 228, 232)
+		card.BackgroundTransparency = 0.06
+		card.BorderSizePixel = 0
+		card.GroupTransparency = 1
+		card.Size = UDim2.new(1, 0, 0, 104)
+		card.Position = UDim2.new(1, 24, 0, 0)
+		card.Parent = host
+		local corner = Instance.new("UICorner")
+		corner.CornerRadius = UDim.new(0, 23)
+		corner.Parent = card
+		local iconFrame = Instance.new("Frame")
+		iconFrame.Name = "AppIcon"
+		iconFrame.Size = UDim2.fromOffset(38, 38)
+		iconFrame.Position = UDim2.new(0, 16, 0.5, -19)
+		iconFrame.BackgroundColor3 = Color3.fromRGB(31, 37, 49)
+		iconFrame.BorderSizePixel = 0
+		iconFrame.Parent = card
+		local iconCorner = Instance.new("UICorner")
+		iconCorner.CornerRadius = UDim.new(0, 10)
+		iconCorner.Parent = iconFrame
+		local icon = Instance.new("ImageLabel")
+		icon.BackgroundTransparency = 1
+		icon.Size = UDim2.fromOffset(24, 24)
+		icon.Position = UDim2.fromOffset(7, 7)
+		icon.Image = type(options.Icon) == "string" and options.Icon or cascade.Symbols.sliderHorizontal3
+		icon.ImageColor3 = Color3.fromRGB(209, 192, 255)
+		icon.Parent = iconFrame
+		textLabel(card, "App", tostring(options.App or "StacOnf"), 14, Enum.FontWeight.SemiBold, UDim2.fromOffset(68, 13))
+		textLabel(card, "Title", tostring(options.Title or "Notification"), 15, Enum.FontWeight.Bold, UDim2.fromOffset(68, 32))
+		local body = textLabel(card, "Message", tostring(options.Subtitle or ""), 15, Enum.FontWeight.Regular, UDim2.fromOffset(68, 51))
+		body.TextWrapped = true
+		local hit = Instance.new("TextButton")
+		hit.Name = "Dismiss"
+		hit.Text = ""
+		hit.BackgroundTransparency = 1
+		hit.Size = UDim2.fromScale(1, 1)
+		hit.ZIndex = 5
+		hit.AutoButtonColor = false
+		hit.Parent = card
+		local entry = { card = card, body = body, height = 104, removed = false }
+		table.insert(entries, 1, entry)
+		hit.Activated:Connect(function() dismiss(entry, false) end)
+		measure(entry)
+		if not alive or entry.removed then return end
+		arrange()
+		entry.timer = later(math.clamp(tonumber(options.Duration) or 4, 1, 30), function()
+			entry.timer = nil
+			dismiss(entry, false)
+		end)
+		return function() if alive then dismiss(entry, false) end end
+	end
+	local resizeThread
+	connect(host:GetPropertyChangedSignal("AbsoluteSize"), function()
+		if resizeThread then pcall(task.cancel, resizeThread); timers[resizeThread] = nil end
+		resizeThread = later(0.1, function()
+			resizeThread = nil
+			for _, entry in ipairs(table.clone(entries)) do measure(entry) end
+			if alive then arrange() end
+		end)
+	end)
+	local function cleanup()
+		if not alive then return end
+		alive = false
+		for _, connection in ipairs(connections) do connection:Disconnect() end
+		table.clear(connections)
+		for thread in pairs(timers) do pcall(task.cancel, thread) end
+		table.clear(timers)
+		for object in pairs(tweens) do stopTween(object) end
+		table.clear(entries)
+	end
+	connect(gui.Destroying, cleanup)
+	connect(owner.Destroying, function() cleanup(); gui:Destroy() end)
+	return notify
+end
+
+local notify = createNotificationCenter(app.__instance, app.__instance.Parent)
+window.Destroying:Connect(function()
+	local parent = app.__instance.Parent
+	local gui = parent and parent:FindFirstChild("StacOnfNotifications")
+	if gui then gui:Destroy() end
+end)
 
 local acrylicBlur = lighting:FindFirstChild("StacOnfAcrylicBlur")
 if not acrylicBlur then
@@ -1375,7 +1592,7 @@ do
 		settingControl("lowLatency", row:Right(), "Toggle", {
 			Value = true,
 			ValueChanged = function(self, value)
-				app:Notification({
+				notify({
 					App = "StacOnf",
 					Title = "Pipeline Update",
 					Subtitle = "Low Latency Rendering set to " .. tostring(value),
@@ -1410,7 +1627,7 @@ do
 			State = "Primary",
 			Pushed = function()
 				local fps = math.floor(1 / (workspaceService:GetRealPhysicsFPS() > 0 and workspaceService:GetRealPhysicsFPS() or 60))
-				app:Notification({
+				notify({
 					App = "StacOnf",
 					Title = "Telemetry Echo",
 					Subtitle = "Connection solid. Engine heartbeat responsive.",
@@ -1429,7 +1646,7 @@ do
 				local before = gcinfo()
 				collectgarbage("collect")
 				local after = gcinfo()
-				app:Notification({
+				notify({
 					App = "StacOnf",
 					Title = "GC Complete",
 					Subtitle = ("Freed ~%d KB of client memory"):format(math.max(0, before - after)),
@@ -1499,7 +1716,7 @@ do
 					lighting.OutdoorAmbient = Color3.fromRGB(255, 170, 90)
 					lighting.Brightness = 2.4
 				end
-				app:Notification({
+				notify({
 					App = "StacOnf",
 					Title = "Lighting Preset",
 					Subtitle = "Applied preset: " .. name,
@@ -1583,7 +1800,7 @@ do
 				if targetHum then
 					settingRegistry.walkSpeed.control.Value = 16
 					settingRegistry.jumpPower.control.Value = 50
-					app:Notification({
+					notify({
 						App = "StacOnf",
 						Title = "Locomotion Reset",
 						Subtitle = "WalkSpeed restored to 16, JumpPower to 50",
@@ -1700,7 +1917,7 @@ do
 			Value = minimizeKey,
 			ValueChanged = function(self, value)
 				minimizeKey = value
-				app:Notification({
+				notify({
 					App = "StacOnf",
 					Title = "Hotkey Updated",
 					Subtitle = "Minimize hotkey bound to " .. tostring(value.Name),
@@ -2080,7 +2297,7 @@ do
 	end
 end
 
-app:Notification({
+notify({
 	App = "StacOnf",
 	Title = "System Online",
 	Subtitle = "StacOnf initialized successfully. Press RightControl to toggle.",
