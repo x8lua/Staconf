@@ -1017,20 +1017,18 @@ local function applyModernVisuals(targetGui)
 					local fx = knob:FindFirstChild("Effects")
 					if fx then fx.Visible = false end
 
-					if not knob:GetAttribute("Tracked") then
-						knob:SetAttribute("Tracked", true)
-						local updating = false
+					if not knob:GetAttribute("StacOnfMotion") then
+						knob:SetAttribute("StacOnfMotion", true)
+						local visual = knob:Clone()
+						visual.Name = "AnimatedKnob"
+						visual.Visible = true
+						visual.Parent = sw
+						knob.Visible = false
 						local function updatePos()
-							if updating then return end
-							updating = true
-							if knob.Position.X.Offset > 5 or knob.Position.X.Scale > 0.3 then
-								knob.Position = UDim2.new(0, 16, 0.5, 0)
-							else
-								knob.Position = UDim2.new(0, 2, 0.5, 0)
-							end
-							updating = false
+							local progress = math.clamp((knob.Position.X.Offset - 1) / 12, 0, 1)
+							visual.Position = UDim2.new(0, 2 + 14 * progress, 0.5, 0)
 						end
-						knob:GetPropertyChangedSignal("Position"):Connect(updatePos)
+						chromeConnect(knob:GetPropertyChangedSignal("Position"), updatePos)
 						updatePos()
 					end
 				end
@@ -1049,7 +1047,7 @@ local function applyModernVisuals(targetGui)
 					thumb.AnchorPoint = Vector2.new(0.5, 0.5)
 					thumb.Position = UDim2.new(1, 0, 0.5, 0)
 					thumb.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-					thumb.BackgroundTransparency = 0
+					thumb.BackgroundTransparency = thumb:GetAttribute("StacOnfMotion") and 1 or 0
 					local thumbCorner = thumb:FindFirstChildOfClass("UICorner") or Instance.new("UICorner", thumb)
 					thumbCorner.CornerRadius = UDim.new(0, 7)
 					local stroke = thumb:FindFirstChildOfClass("UIStroke") or Instance.new("UIStroke", thumb)
@@ -1060,6 +1058,45 @@ local function applyModernVisuals(targetGui)
 					if bg then bg.Visible = false end
 					local fx = thumb:FindFirstChild("ThumbEffects")
 					if fx then fx.Visible = false end
+					if not thumb:GetAttribute("StacOnfMotion") then
+						thumb:SetAttribute("StacOnfMotion", true)
+						local visual = Instance.new("Frame")
+						visual.Name = "AnimatedThumb"
+						visual.Size = UDim2.fromScale(1, 1)
+						visual.AnchorPoint = Vector2.new(0.5, 0.5)
+						visual.Position = UDim2.fromScale(0.5, 0.5)
+						visual.BackgroundColor3 = Color3.new(1, 1, 1)
+						visual.BorderSizePixel = 0
+						visual.ZIndex = thumb.ZIndex
+						thumbCorner:Clone().Parent = visual
+						stroke:Clone().Parent = visual
+						visual.Parent = thumb
+						thumb.BackgroundTransparency = 1
+						stroke.Enabled = false
+						local scale = Instance.new("UIScale")
+						scale.Name = "InteractionScale"
+						scale.Parent = visual
+						local activeTween
+						local dragging = false
+						local hovering = false
+						local function animate()
+							if activeTween then activeTween:Cancel(); activeTween:Destroy() end
+							activeTween = tweenService:Create(scale, TweenInfo.new(0.18, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {
+								Scale = dragging and 1.24 or (hovering and 1.1 or 1),
+							})
+							activeTween:Play()
+						end
+						chromeConnect(thumb.MouseEnter, function() hovering = true; animate() end)
+						chromeConnect(thumb.MouseLeave, function() hovering = false; animate() end)
+						local dragger = thumb:FindFirstChildOfClass("UIDragDetector")
+						if dragger then
+							chromeConnect(dragger.DragStart, function() dragging = true; animate() end)
+							chromeConnect(dragger.DragEnd, function() dragging = false; animate() end)
+						end
+						chromeConnect(thumb.Destroying, function()
+							if activeTween then activeTween:Cancel(); activeTween:Destroy(); activeTween = nil end
+						end)
+					end
 				end
 			end
 		elseif obj.Name == "SidebarItem" and (obj:IsA("TextButton") or obj:IsA("Frame")) then
