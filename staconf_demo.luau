@@ -103,6 +103,127 @@ local window = app:Window({
 local currentMode = "Dark"
 local currentAccent = "Blue"
 
+
+local function createNotificationGlass(gui, scale)
+	local templates
+	local roots = {}
+	local ok = pcall(function()
+		local asset = getAsset("LiquidGlassHandler.rbxm", "https://raw.githubusercontent.com/x8lua/Staconf/main/assets/LiquidGlassHandler.rbxm")
+		roots = game:GetObjects(asset)
+		for _, root in ipairs(roots) do
+			local overlay = root:FindFirstChild("Overlay", true)
+			if overlay then templates = overlay:Clone(); break end
+		end
+	end)
+	for _, root in ipairs(roots) do root:Destroy() end
+	if not ok or not templates then
+		warn("StacOnf: liquid glass unavailable; using themed notification surface.")
+		return { Add = function() return false end, Destroy = function() end }
+	end
+	local items = {}
+	local connection
+	local destroyed = false
+	local runService = game:GetService("RunService")
+	local folder = Instance.new("Folder")
+	folder.Name = "StacOnfNotificationGlass"
+	folder.Parent = workspaceService
+	local function remove(card)
+		local item = items[card]
+		if not item then return end
+		item.connection:Disconnect()
+		item.model:Destroy()
+		items[card] = nil
+		if not next(items) and connection then connection:Disconnect(); connection = nil end
+	end
+	local function render()
+		local camera = workspaceService.CurrentCamera
+		if not camera then return end
+		local cam = camera:GetRenderCFrame()
+		local inset = game:GetService("GuiService"):GetGuiInset()
+		for card, item in pairs(items) do
+			local size = card.AbsoluteSize
+			local pos = card.AbsolutePosition + inset
+			local visible = gui.Enabled and card.Visible and card.GroupTransparency < 0.999 and size.X > 1 and size.Y > 1
+			item.model.Parent = visible and folder or nil
+			if not visible then continue end
+			local radius = math.min(23 * scale.Scale, size.Y / 2, size.X / 2)
+			local rx, ry = radius / size.X, radius / size.Y
+			if item.lastSize ~= size then
+			item.lastSize = size
+			item.layout = {
+				{"Center", 0, 0, 1 - 2 * rx, 1 - 2 * ry, 0, false},
+				{"Edge", 0, -0.5 + ry / 2, 1 - 2 * rx, ry, 0, false},
+				{"Edge", 0, 0.5 - ry / 2, 1 - 2 * rx, ry, 180, false},
+				{"Edge", -0.5 + rx / 2, 0, rx, 1 - 2 * ry, 90, true},
+				{"Edge", 0.5 - rx / 2, 0, rx, 1 - 2 * ry, -90, true},
+				{"Corner", -0.5 + rx / 2, -0.5 + ry / 2, rx, ry, 90, true},
+				{"Corner", 0.5 - rx / 2, -0.5 + ry / 2, rx, ry, 0, false},
+				{"Corner", -0.5 + rx / 2, 0.5 - ry / 2, rx, ry, 180, false},
+				{"Corner", 0.5 - rx / 2, 0.5 - ry / 2, rx, ry, -90, true},
+			}
+			end
+			local function project(x, y)
+				local ray = camera:ViewportPointToRay(x, y)
+				return ray.Origin + ray.Direction * (0.6 / ray.Direction:Dot(cam.LookVector))
+			end
+			local center = pos + size / 2
+			local world = project(center.X, center.Y)
+			local width = (project(center.X + size.X / 2, center.Y) - project(center.X - size.X / 2, center.Y)).Magnitude
+			local height = (project(center.X, center.Y + size.Y / 2) - project(center.X, center.Y - size.Y / 2)).Magnitude
+			for index, spec in ipairs(item.layout) do
+				local part = item.parts[index]
+				local w, h = math.max(0.001, spec[4] * width), math.max(0.001, spec[5] * height)
+				part.Size = spec[7] and Vector3.new(0.01, w, h) or Vector3.new(0.01, h, w)
+				part.CFrame = CFrame.new(world + cam.RightVector * spec[2] * width - cam.UpVector * spec[3] * height) * cam.Rotation * CFrame.Angles(0, 0, math.rad(spec[6])) * CFrame.Angles(0, -math.pi / 2, 0)
+				part.Color = currentMode == "Light" and Color3.fromRGB(226, 232, 240) or Color3.fromRGB(85, 92, 108)
+				part.Transparency = 0.94 + 0.06 * card.GroupTransparency
+			end
+			item.highlight.FillTransparency = 0.97 + 0.03 * card.GroupTransparency
+		end
+	end
+	return {
+		Add = function(card)
+			if destroyed then return false end
+			local model = Instance.new("Model")
+			model.Name = "NotificationGlass"
+			model.Parent = folder
+			local item = { model = model, parts = {} }
+			for _, name in ipairs({"Center", "Edge", "Edge", "Edge", "Edge", "Corner", "Corner", "Corner", "Corner"}) do
+				local part = templates[name]:Clone()
+				part:ClearAllChildren()
+				part.Anchored = true
+				part.CanCollide = false
+				part.CanTouch = false
+				part.CanQuery = false
+				part.CastShadow = false
+				part.Material = Enum.Material.Glass
+				part.Transparency = 1
+				part.Reflectance = 0
+				part.Parent = model
+				table.insert(item.parts, part)
+			end
+			local highlight = Instance.new("Highlight")
+			highlight.FillColor = Color3.new(0, 0, 0)
+			highlight.OutlineTransparency = 1
+			highlight.FillTransparency = 0.97
+			highlight.Parent = model
+			item.highlight = highlight
+			item.connection = card.Destroying:Connect(function() remove(card) end)
+			items[card] = item
+			if not connection then connection = runService.RenderStepped:Connect(render) end
+			return true
+		end,
+		Destroy = function()
+			if destroyed then return end
+			destroyed = true
+			if connection then connection:Disconnect(); connection = nil end
+			for card in pairs(items) do remove(card) end
+			templates:Destroy()
+			folder:Destroy()
+		end,
+	}
+end
+
 local function createNotificationCenter(owner, parent)
 	local gui = Instance.new("ScreenGui")
 	gui.Name = "StacOnfNotifications"
@@ -125,6 +246,7 @@ local function createNotificationCenter(owner, parent)
 	local limit = Instance.new("UISizeConstraint")
 	limit.MaxSize = Vector2.new(414, 10000)
 	limit.Parent = host
+	local glass = createNotificationGlass(gui, displayScale)
 	local alive = true
 	local entries = {}
 	local connections = {}
@@ -133,7 +255,7 @@ local function createNotificationCenter(owner, parent)
 	local function style(entry)
 		local light = currentMode == "Light"
 		entry.card.BackgroundColor3 = light and Color3.fromRGB(242, 243, 247) or Color3.fromRGB(34, 37, 47)
-		entry.card.BackgroundTransparency = light and 0.18 or 0.22
+		entry.card.BackgroundTransparency = entry.glass and (light and 0.48 or 0.32) or (light and 0.18 or 0.22)
 		local primary = light and Color3.fromRGB(37, 40, 48) or Color3.fromRGB(244, 245, 249)
 		local secondary = light and Color3.fromRGB(108, 113, 125) or Color3.fromRGB(169, 174, 189)
 		for _, child in ipairs(entry.card:GetChildren()) do
@@ -272,6 +394,11 @@ local function createNotificationCenter(owner, parent)
 		local corner = Instance.new("UICorner")
 		corner.CornerRadius = UDim.new(0, 23)
 		corner.Parent = card
+		local rim = Instance.new("UIStroke")
+		rim.Color = Color3.fromRGB(235, 242, 255)
+		rim.Transparency = 0.72
+		rim.Thickness = 1
+		rim.Parent = card
 		local iconFrame = Instance.new("Frame")
 		iconFrame.Name = "AppIcon"
 		iconFrame.Size = UDim2.fromOffset(38, 38)
@@ -301,7 +428,7 @@ local function createNotificationCenter(owner, parent)
 		hit.ZIndex = 5
 		hit.AutoButtonColor = false
 		hit.Parent = card
-		local entry = { card = card, body = body, height = 104, removed = false }
+		local entry = { card = card, body = body, height = 104, removed = false, glass = glass.Add(card) }
 		style(entry)
 		table.insert(entries, 1, entry)
 		hit.Activated:Connect(function() dismiss(entry, false) end)
@@ -326,6 +453,7 @@ local function createNotificationCenter(owner, parent)
 	local function cleanup()
 		if not alive then return end
 		alive = false
+		glass.Destroy()
 		for _, connection in ipairs(connections) do connection:Disconnect() end
 		table.clear(connections)
 		for thread in pairs(timers) do pcall(task.cancel, thread) end
