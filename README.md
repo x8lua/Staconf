@@ -37,7 +37,9 @@ loadstring(game:HttpGet("https://raw.githubusercontent.com/x8lua/Staconf/main/in
 - **Zero Library Dependencies**: 100% native Luau implementation.
 
 ### Cascade Sequoia Deck (`cascade_demo.luau`)
-- **macOS Sequoia Window Architecture**: Traffic light window controls, integrated toolbar search, draggable and resizable frames.
+- **macOS Sequoia Window Architecture**: Traffic light window controls, sidebar search above a local Sign in panel, draggable and resizable frames.
+- **Compact Sidebar**: Semibold SF Pro tab titles, 2px tab gaps, solid sidebar/content surfaces without a seam divider, and one rounded outer clip. Sign in toggles a local demo account only; it does not authenticate or send credentials.
+- **Responsive Pointer Panel**: SF Pro typography, synchronized theme colors, animated toggles and buttons, and a draggable slider with concise motion feedback.
 - **Multi-Matrix Routing**:
   - **Runtime Matrix**: Real-time Field of View slider, low-latency render toggles, engine ping, and instant GC memory collector.
   - **Environment**: Real-time ClockTime scrubber, global shadow switches, and ambient lighting presets.

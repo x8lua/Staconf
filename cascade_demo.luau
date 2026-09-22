@@ -202,24 +202,57 @@ gradBottomTransVal.Changed:Connect(onGradientValueChanged)
 local modalDimmer = nil
 local middlePanel = nil
 local isModalOpen = false
+local refreshMiddlePanel
+local modalConnections = {}
+
+local function modalConnect(signal, callback)
+	local connection = signal:Connect(callback)
+	table.insert(modalConnections, connection)
+	return connection
+end
 
 local function openMiddlePanel()
+	if refreshMiddlePanel then refreshMiddlePanel() end
 	if not modalDimmer or not middlePanel then return end
 	isModalOpen = true
 	modalDimmer.Visible = true
 	middlePanel.Visible = true
 	modalDimmer.BackgroundTransparency = 1
+	middlePanel.Position = UDim2.new(0.5, 0, 0.5, 24)
 	local panelScale = middlePanel:FindFirstChildOfClass("UIScale")
 	if panelScale then
-		panelScale.Scale = 0.92
+		panelScale.Scale = 0.88
 	end
-	tweenService:Create(modalDimmer, TweenInfo.new(0.3, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {
+	tweenService:Create(modalDimmer, TweenInfo.new(0.22, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {
 		BackgroundTransparency = 0.45,
 	}):Play()
+	tweenService:Create(middlePanel, TweenInfo.new(0.38, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {
+		Position = UDim2.new(0.5, 0, 0.5, 0),
+	}):Play()
 	if panelScale then
-		tweenService:Create(panelScale, TweenInfo.new(0.35, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {
+		tweenService:Create(panelScale, TweenInfo.new(0.42, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
 			Scale = 1,
 		}):Play()
+	end
+	local title = middlePanel:FindFirstChild("Title")
+	local form = middlePanel:FindFirstChild("FormCard")
+	local footer = middlePanel:FindFirstChild("Footer")
+	if title then
+		title.Position = UDim2.fromOffset(-12, 0)
+		title.TextTransparency = 1
+		tweenService:Create(title, TweenInfo.new(0.26, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), { Position = UDim2.fromOffset(0, 0), TextTransparency = 0 }):Play()
+	end
+	if form then
+		form.Position = UDim2.new(0, 0, 0, 48)
+		task.delay(0.05, function()
+			if isModalOpen and form.Parent then tweenService:Create(form, TweenInfo.new(0.34, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), { Position = UDim2.new(0, 0, 0, 32) }):Play() end
+		end)
+	end
+	if footer then
+		footer.Position = UDim2.new(0, 0, 1, -20)
+		task.delay(0.1, function()
+			if isModalOpen and footer.Parent then tweenService:Create(footer, TweenInfo.new(0.32, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), { Position = UDim2.new(0, 0, 1, -36) }):Play() end
+		end)
 	end
 end
 
@@ -229,10 +262,13 @@ local function closeMiddlePanel()
 	tweenService:Create(modalDimmer, TweenInfo.new(0.25, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {
 		BackgroundTransparency = 1,
 	}):Play()
+	tweenService:Create(middlePanel, TweenInfo.new(0.22, Enum.EasingStyle.Quart, Enum.EasingDirection.In), {
+		Position = UDim2.new(0.5, 0, 0.5, 18),
+	}):Play()
 	local panelScale = middlePanel:FindFirstChildOfClass("UIScale")
 	if panelScale then
-		local t = tweenService:Create(panelScale, TweenInfo.new(0.25, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {
-			Scale = 0.92,
+		local t = tweenService:Create(panelScale, TweenInfo.new(0.22, Enum.EasingStyle.Quart, Enum.EasingDirection.In), {
+			Scale = 0.9,
 		})
 		t:Play()
 		t.Completed:Connect(function()
@@ -291,6 +327,7 @@ local function createMiddlePanel(targetGui)
 
 	local panelStroke = Instance.new("UIStroke")
 	panelStroke.Thickness = 1
+	panelStroke.Transparency = 0.75
 	panelStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 	panelStroke.Color = (currentMode == "Light" and Color3.fromRGB(218, 220, 226) or Color3.fromRGB(55, 60, 75))
 	panelStroke.Parent = middlePanel
@@ -310,7 +347,7 @@ local function createMiddlePanel(targetGui)
 	titleLabel.Name = "Title"
 	titleLabel.Text = "Pointer Control"
 	titleLabel.TextSize = 16
-	titleLabel.Font = Enum.Font.SourceSansBold
+	titleLabel.FontFace = Font.new("rbxassetid://12187365364", Enum.FontWeight.SemiBold)
 	titleLabel.TextColor3 = (currentMode == "Light" and Color3.fromRGB(30, 30, 30) or Color3.fromRGB(255, 255, 255))
 	titleLabel.TextXAlignment = Enum.TextXAlignment.Left
 	titleLabel.BackgroundTransparency = 1
@@ -347,8 +384,8 @@ local function createMiddlePanel(targetGui)
 
 		local lbl = Instance.new("TextLabel")
 		lbl.Text = title
-		lbl.TextSize = 14
-		lbl.Font = Enum.Font.SourceSans
+		lbl.TextSize = 15
+		lbl.FontFace = Font.new("rbxassetid://12187365364", Enum.FontWeight.Regular)
 		lbl.TextColor3 = (currentMode == "Light" and Color3.fromRGB(35, 35, 35) or Color3.fromRGB(235, 235, 235))
 		lbl.TextXAlignment = Enum.TextXAlignment.Left
 		lbl.AnchorPoint = Vector2.new(0, 0.5)
@@ -380,14 +417,24 @@ local function createMiddlePanel(targetGui)
 		local knobCorner = Instance.new("UICorner")
 		knobCorner.CornerRadius = UDim.new(0, 9)
 		knobCorner.Parent = knob
+		local knobScale = Instance.new("UIScale")
+		knobScale.Parent = knob
+		local toggleScale = Instance.new("UIScale")
+		toggleScale.Parent = togBtn
 
+		togBtn:SetAttribute("Enabled", defaultVal)
 		local val = defaultVal
 		togBtn.MouseButton1Click:Connect(function()
 			val = not val
+			togBtn:SetAttribute("Enabled", val)
 			local targetCol = val and Color3.fromRGB(0, 122, 255) or (currentMode == "Light" and Color3.fromRGB(220, 222, 228) or Color3.fromRGB(60, 62, 70))
 			local targetPos = val and UDim2.new(0, 16, 0.5, 0) or UDim2.new(0, 2, 0.5, 0)
-			tweenService:Create(togBtn, TweenInfo.new(0.25, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), { BackgroundColor3 = targetCol }):Play()
-			tweenService:Create(knob, TweenInfo.new(0.25, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), { Position = targetPos }):Play()
+			tweenService:Create(togBtn, TweenInfo.new(0.18, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), { BackgroundColor3 = targetCol }):Play()
+			tweenService:Create(knob, TweenInfo.new(0.24, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Position = targetPos }):Play()
+			knobScale.Scale = 0.78
+			toggleScale.Scale = 0.92
+			tweenService:Create(knobScale, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = 1 }):Play()
+			tweenService:Create(toggleScale, TweenInfo.new(0.28, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = 1 }):Play()
 		end)
 		knob.Parent = togBtn
 		togBtn.Parent = row
@@ -419,8 +466,8 @@ local function createMiddlePanel(targetGui)
 
 	local sLbl = Instance.new("TextLabel")
 	sLbl.Text = "Scroll speed"
-	sLbl.TextSize = 14
-	sLbl.Font = Enum.Font.SourceSans
+	sLbl.TextSize = 15
+	sLbl.FontFace = Font.new("rbxassetid://12187365364", Enum.FontWeight.Regular)
 	sLbl.TextColor3 = (currentMode == "Light" and Color3.fromRGB(35, 35, 35) or Color3.fromRGB(235, 235, 235))
 	sLbl.TextXAlignment = Enum.TextXAlignment.Left
 	sLbl.AnchorPoint = Vector2.new(0, 0.5)
@@ -466,10 +513,13 @@ local function createMiddlePanel(targetGui)
 	sThumbStroke.Color = Color3.fromRGB(0, 0, 0)
 	sThumbStroke.Transparency = 0.8
 	sThumbStroke.Parent = sThumb
+	local sThumbScale = Instance.new("UIScale")
+	sThumbScale.Parent = sThumb
 	sThumb.Parent = sFill
 
 	local turtleLbl = Instance.new("TextLabel")
-	turtleLbl.Text = "🐢"
+	turtleLbl.Text = "−"
+	turtleLbl.FontFace = Font.new("rbxassetid://12187365364")
 	turtleLbl.TextSize = 13
 	turtleLbl.BackgroundTransparency = 1
 	turtleLbl.AnchorPoint = Vector2.new(1, 0.5)
@@ -478,7 +528,8 @@ local function createMiddlePanel(targetGui)
 	turtleLbl.Parent = sliderRow
 
 	local hareLbl = Instance.new("TextLabel")
-	hareLbl.Text = "🐇"
+	hareLbl.Text = "+"
+	hareLbl.FontFace = Font.new("rbxassetid://12187365364")
 	hareLbl.TextSize = 13
 	hareLbl.BackgroundTransparency = 1
 	hareLbl.AnchorPoint = Vector2.new(1, 0.5)
@@ -487,6 +538,39 @@ local function createMiddlePanel(targetGui)
 	hareLbl.Parent = sliderRow
 
 	sTrack.Parent = sliderRow
+	local sliderHitbox = Instance.new("TextButton")
+	sliderHitbox.Name = "SliderHitbox"
+	sliderHitbox.Text = ""
+	sliderHitbox.AutoButtonColor = false
+	sliderHitbox.BackgroundTransparency = 1
+	sliderHitbox.AnchorPoint = Vector2.new(1, 0.5)
+	sliderHitbox.Position = UDim2.new(1, -14, 0.5, 0)
+	sliderHitbox.Size = UDim2.fromOffset(170, 36)
+	sliderHitbox.ZIndex = sTrack.ZIndex + 2
+	sliderHitbox.Parent = sliderRow
+	local sliderDragging = false
+	local function updateSlider(inputX)
+		local ratio = math.clamp((inputX - sTrack.AbsolutePosition.X) / math.max(sTrack.AbsoluteSize.X, 1), 0, 1)
+		sFill.Size = UDim2.fromScale(ratio, 1)
+	end
+	modalConnect(sliderHitbox.InputBegan, function(input)
+		if input.UserInputType ~= Enum.UserInputType.MouseButton1 and input.UserInputType ~= Enum.UserInputType.Touch then return end
+		sliderDragging = true
+		updateSlider(input.Position.X)
+		tweenService:Create(sThumbScale, TweenInfo.new(0.16, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = 1.32 }):Play()
+	end)
+	modalConnect(userInputService.InputChanged, function(input)
+		if not sliderDragging then return end
+		if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+			updateSlider(input.Position.X)
+		end
+	end)
+	modalConnect(userInputService.InputEnded, function(input)
+		if input.UserInputType ~= Enum.UserInputType.MouseButton1 and input.UserInputType ~= Enum.UserInputType.Touch then return end
+		if not sliderDragging then return end
+		sliderDragging = false
+		tweenService:Create(sThumbScale, TweenInfo.new(0.22, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = 1 }):Play()
+	end)
 	sliderRow.Parent = formCard
 
 	local sep2 = Instance.new("Frame")
@@ -513,8 +597,8 @@ local function createMiddlePanel(targetGui)
 
 	local dLbl = Instance.new("TextLabel")
 	dLbl.Text = "Dragging style"
-	dLbl.TextSize = 14
-	dLbl.Font = Enum.Font.SourceSans
+	dLbl.TextSize = 15
+	dLbl.FontFace = Font.new("rbxassetid://12187365364", Enum.FontWeight.Regular)
 	dLbl.TextColor3 = (currentMode == "Light" and Color3.fromRGB(35, 35, 35) or Color3.fromRGB(235, 235, 235))
 	dLbl.TextXAlignment = Enum.TextXAlignment.Left
 	dLbl.AnchorPoint = Vector2.new(0, 0.5)
@@ -524,9 +608,9 @@ local function createMiddlePanel(targetGui)
 	dLbl.Parent = dragStyleRow
 
 	local styleVal = Instance.new("TextLabel")
-	styleVal.Text = "Without Drag Lock ⬍"
+	styleVal.Text = "Without Drag Lock"
 	styleVal.TextSize = 13
-	styleVal.Font = Enum.Font.SourceSans
+	styleVal.FontFace = Font.new("rbxassetid://12187365364", Enum.FontWeight.Regular)
 	styleVal.TextColor3 = (currentMode == "Light" and Color3.fromRGB(130, 133, 140) or Color3.fromRGB(150, 155, 170))
 	styleVal.TextXAlignment = Enum.TextXAlignment.Right
 	styleVal.AnchorPoint = Vector2.new(1, 0.5)
@@ -548,7 +632,7 @@ local function createMiddlePanel(targetGui)
 	cancelBtn.Name = "Cancel"
 	cancelBtn.Text = "Cancel"
 	cancelBtn.TextSize = 13
-	cancelBtn.Font = Enum.Font.SourceSans
+	cancelBtn.FontFace = Font.new("rbxassetid://12187365364", Enum.FontWeight.Regular)
 	cancelBtn.TextColor3 = (currentMode == "Light" and Color3.fromRGB(40, 40, 40) or Color3.fromRGB(240, 240, 240))
 	cancelBtn.BackgroundColor3 = (currentMode == "Light" and Color3.fromRGB(236, 238, 244) or Color3.fromRGB(45, 48, 60))
 	cancelBtn.BorderSizePixel = 0
@@ -565,7 +649,7 @@ local function createMiddlePanel(targetGui)
 	okBtn.Name = "OK"
 	okBtn.Text = "OK"
 	okBtn.TextSize = 13
-	okBtn.Font = Enum.Font.SourceSansBold
+	okBtn.FontFace = Font.new("rbxassetid://12187365364", Enum.FontWeight.SemiBold)
 	okBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 	okBtn.BackgroundColor3 = Color3.fromRGB(0, 122, 255)
 	okBtn.BorderSizePixel = 0
@@ -577,94 +661,339 @@ local function createMiddlePanel(targetGui)
 	okCorner.Parent = okBtn
 	okBtn.MouseButton1Click:Connect(closeMiddlePanel)
 	okBtn.Parent = footerBar
+	local function animateButton(button)
+		local scale = Instance.new("UIScale")
+		scale.Parent = button
+		modalConnect(button.InputBegan, function(input)
+			if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+				tweenService:Create(scale, TweenInfo.new(0.09, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), { Scale = 0.9 }):Play()
+			end
+		end)
+		modalConnect(button.InputEnded, function(input)
+			if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+				tweenService:Create(scale, TweenInfo.new(0.2, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = 1 }):Play()
+			end
+		end)
+	end
+	animateButton(cancelBtn)
+	animateButton(okBtn)
 
 	footerBar.Parent = middlePanel
 	middlePanel.Parent = layoutIgnore
+	refreshMiddlePanel = function()
+		if not middlePanel or not middlePanel.Parent then return end
+		local light = currentMode == "Light"
+		local primary = light and Color3.fromRGB(37, 40, 48) or Color3.fromRGB(244, 245, 249)
+		local secondary = light and Color3.fromRGB(108, 113, 125) or Color3.fromRGB(169, 174, 189)
+		local neutral = light and Color3.fromRGB(226, 230, 236) or Color3.fromRGB(43, 46, 57)
+		local accents = {Blue=Color3.fromRGB(0,122,255),Purple=Color3.fromRGB(175,82,222),Pink=Color3.fromRGB(255,45,85),Red=Color3.fromRGB(255,59,48),Orange=Color3.fromRGB(255,149,0),Yellow=Color3.fromRGB(255,204,0),Green=Color3.fromRGB(52,199,89),Graphite=Color3.fromRGB(142,142,147)}
+		local accent = accents[currentAccent] or accents.Blue
+		local info = TweenInfo.new(0.32, Enum.EasingStyle.Quart, Enum.EasingDirection.Out)
+		local function apply(object, properties)
+			if middlePanel.Visible then tweenService:Create(object, info, properties):Play() else for property, value in pairs(properties) do object[property] = value end end
+		end
+		apply(middlePanel, { BackgroundColor3 = light and Color3.fromRGB(255,255,255) or Color3.fromRGB(20,22,29) })
+		apply(formCard, { BackgroundColor3 = light and Color3.fromRGB(245,245,247) or Color3.fromRGB(29,31,39) })
+		apply(panelStroke, { Color = neutral })
+		apply(cancelBtn, { BackgroundColor3 = neutral })
+		apply(okBtn, { BackgroundColor3 = accent })
+		apply(sTrack, { BackgroundColor3 = neutral })
+		apply(sFill, { BackgroundColor3 = accent })
+		for _, object in ipairs(middlePanel:GetDescendants()) do
+			if object:IsA("TextLabel") or object:IsA("TextButton") then
+				apply(object, { TextColor3 = object == okBtn and Color3.new(1,1,1) or primary })
+			end
+			if object.Name == "Sep" or object.Name == "Sep2" then
+				apply(object, { BackgroundColor3 = neutral })
+			elseif object.Name == "Toggle" and object:IsA("TextButton") then
+				apply(object, { BackgroundColor3 = object:GetAttribute("Enabled") and accent or neutral })
+			end
+		end
+		apply(styleVal, { TextColor3 = secondary })
+		apply(turtleLbl, { TextColor3 = secondary })
+		apply(hareLbl, { TextColor3 = secondary })
+	end
+	refreshMiddlePanel()
+	modalConnect(middlePanel.Destroying, function()
+		for _, connection in ipairs(modalConnections) do connection:Disconnect() end
+		table.clear(modalConnections)
+		refreshMiddlePanel = nil
+	end)
+end
+
+local refreshSidebarChrome
+local refreshAccountPage
+local accountTab
+local chromeConnections = {}
+local function chromeConnect(signal, callback)
+	local connection = signal:Connect(callback)
+	table.insert(chromeConnections, connection)
+	return connection
+end
+
+local function crispPopUpButton(parent, options)
+	local control = parent:PopUpButton(options)
+	local function raw(value)
+		return typeof(value) == "Instance" and value or value.__instance
+	end
+	local structures = control.Structures
+	local group = raw(structures.MenuBody)
+	local container = raw(structures.MenuContainer)
+	local menu = raw(structures.Menu)
+	local layer = Instance.new("Frame")
+	layer.Name = "DirectMenuLayer"
+	layer.BackgroundTransparency = 1
+	layer.BorderSizePixel = 0
+	layer.Size = UDim2.fromScale(1, 1)
+	layer.Visible = group.GroupTransparency < 1
+	layer.Parent = container
+	menu.Parent = layer
+	local button = raw(structures.Body)
+	local positioning = false
+	local connections = {}
+	local function anchorMenu()
+		if positioning or not container.Parent then return end
+		positioning = true
+		local origin = layer.AbsolutePosition
+		local bounds = layer.AbsoluteSize
+		local buttonPosition = button.AbsolutePosition - origin
+		local buttonSize = button.AbsoluteSize
+		local menuSize = menu.AbsoluteSize
+		local x = buttonPosition.X + buttonSize.X - menuSize.X
+		local y = buttonPosition.Y + buttonSize.Y + 6
+		if y + menuSize.Y > bounds.Y - 8 then
+			y = buttonPosition.Y - menuSize.Y - 6
+		end
+		menu.Position = UDim2.fromOffset(
+			math.round(math.clamp(x, 8, math.max(8, bounds.X - menuSize.X - 8))),
+			math.round(math.clamp(y, 8, math.max(8, bounds.Y - menuSize.Y - 8)))
+		)
+		positioning = false
+	end
+	for _, entry in ipairs({
+		{menu, "Position"}, {menu, "AbsoluteSize"},
+		{button, "AbsolutePosition"}, {button, "AbsoluteSize"},
+		{layer, "AbsoluteSize"}, {container, "Parent"},
+	}) do
+		table.insert(connections, entry[1]:GetPropertyChangedSignal(entry[2]):Connect(anchorMenu))
+	end
+	local visibility = group:GetPropertyChangedSignal("GroupTransparency"):Connect(function()
+		layer.Visible = control.Expanded and group.GroupTransparency < 1
+		if layer.Visible then anchorMenu() end
+	end)
+	anchorMenu()
+	local destroyed
+	destroyed = window.Destroying:Connect(function()
+		visibility:Disconnect()
+		for _, connection in ipairs(connections) do connection:Disconnect() end
+		destroyed:Disconnect()
+		container:Destroy()
+	end)
+	return control
+end
+
+local function installSidebarChrome(targetGui)
+	local function raw(value) return typeof(value) == "Instance" and value or value.__instance end
+	local structures = window.Structures
+	local body = raw(structures.Body)
+	local sidebar = raw(structures.SidebarMargins)
+	local margins = raw(structures.Sidebar)
+	local list = raw(structures.SidebarList)
+	local content = raw(structures.ContentBody)
+	if body:FindFirstChild("ChromeSurface", true) then return end
+	local surface = Instance.new("CanvasGroup")
+	surface.Name = "ChromeSurface"
+	surface.Size = UDim2.fromScale(1, 1)
+	surface.BackgroundTransparency = 1
+	surface.BorderSizePixel = 0
+	surface.Parent = raw(structures.LayoutIgnore)
+	local corner = Instance.new("UICorner")
+	corner.CornerRadius = UDim.new(0, 22)
+	corner.Parent = surface
+	local layout = body:FindFirstChildOfClass("UIListLayout")
+	if layout then layout.Parent = surface end
+	sidebar.Parent = surface
+	content.Parent = surface
+	local separator = raw(structures.Separator)
+	separator.Parent = surface
+	separator.Visible = false
+	separator.Size = UDim2.new(0, 0, 1, 0)
+	local shadow = margins:FindFirstChild("Shadow", true)
+	if shadow then shadow.Visible = false end
+	local sidebarPadding = margins:FindFirstChildOfClass("UIPadding")
+	if sidebarPadding then sidebarPadding.PaddingRight = UDim.new(0, 0) end
+	local listLayout = list:FindFirstChildOfClass("UIListLayout")
+	if listLayout then listLayout.Padding = UDim.new(0, 2) end
+	local listTop = userInputService.TouchEnabled and 172 or 162
+	list.Position = UDim2.fromOffset(0, listTop)
+	list.Size = UDim2.new(1, 0, 1, -listTop - 8)
+	local search = structures.Titlebar.SearchField
+	local searchBody, searchField = raw(search.Body), raw(search.Field)
+	searchBody.Parent = margins
+	searchBody.Name = "SidebarSearch"
+	searchBody.AutomaticSize = Enum.AutomaticSize.None
+	searchBody.Position = UDim2.fromOffset(12, 52)
+	searchBody.Size = UDim2.new(1, -24, 0, userInputService.TouchEnabled and 44 or 32)
+	searchField.AutomaticSize = Enum.AutomaticSize.None
+	searchField.Size = UDim2.new(1, -36, 1, 0)
+	searchField.TextSize = 14
+	searchField.TextTruncate = Enum.TextTruncate.AtEnd
+	local searchStroke = searchBody:FindFirstChildOfClass("UIStroke")
+	if searchStroke then searchStroke.Enabled = false end
+	local searchCorner = searchBody:FindFirstChildOfClass("UICorner")
+	if searchCorner then searchCorner.CornerRadius = UDim.new(0, 8) end
+	local signIn = Instance.new("TextButton")
+	signIn.Name = "SignInPanel"
+	signIn.Text = ""
+	signIn.AutoButtonColor = false
+	signIn.BackgroundTransparency = 1
+	signIn.BorderSizePixel = 0
+	signIn.Position = UDim2.fromOffset(12, userInputService.TouchEnabled and 104 or 94)
+	signIn.Size = UDim2.new(1, -24, 0, 56)
+	signIn.Parent = margins
+	local avatar = Instance.new("Frame")
+	avatar.Name = "Avatar"
+	avatar.Size = UDim2.fromOffset(34, 34)
+	avatar.Position = UDim2.fromOffset(6, 11)
+	avatar.BorderSizePixel = 0
+	avatar.Parent = signIn
+	local avatarCorner = Instance.new("UICorner")
+	avatarCorner.CornerRadius = UDim.new(1, 0)
+	avatarCorner.Parent = avatar
+	for _,spec in ipairs({{12,6,10,10},{7,18,20,12}}) do
+		local part = Instance.new("Frame")
+		part.Size = UDim2.fromOffset(spec[3], spec[4])
+		part.Position = UDim2.fromOffset(spec[1], spec[2])
+		part.BorderSizePixel = 0
+		part.BackgroundColor3 = Color3.new(1, 1, 1)
+		part.Parent = avatar
+		local rounding = Instance.new("UICorner")
+		rounding.CornerRadius = UDim.new(1, 0)
+		rounding.Parent = part
+	end
+	local function text(name, value, y, size, weight)
+		local label = Instance.new("TextLabel")
+		label.Name = name
+		label.Text = value
+		label.Size = UDim2.new(1, -53, 0, 20)
+		label.Position = UDim2.fromOffset(50, y)
+		label.BackgroundTransparency = 1
+		label.TextXAlignment = Enum.TextXAlignment.Left
+		label.FontFace = Font.new("rbxassetid://12187365364", weight)
+		label.TextSize = size
+		label.TextTruncate = Enum.TextTruncate.AtEnd
+		label.Parent = signIn
+		return label
+	end
+	local title = text("Title", "Free User", 7, 15, Enum.FontWeight.SemiBold)
+	local subtitle = text("Subtitle", "View account", 27, 11, Enum.FontWeight.Regular)
+	chromeConnect(signIn.Activated, function()
+		if not accountTab then return end
+		accountTab.Selected = true
+		if window.addToHistory then window.addToHistory(accountTab.__container) end
+		local page = accountTab.Structures.Page
+		page = typeof(page) == "Instance" and page or page.__instance
+		local header = page:FindFirstChild("AccountHeader", true)
+		local information = page:FindFirstChild("AccountInformation", true)
+		if header then
+			header.Position = UDim2.fromOffset(0, 12)
+			tweenService:Create(header, TweenInfo.new(0.3, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), { Position = UDim2.fromOffset(0, 0) }):Play()
+		end
+		if information then
+			information.Position = UDim2.fromOffset(16, 182)
+			task.delay(0.04, function()
+				if information.Parent then tweenService:Create(information, TweenInfo.new(0.34, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), { Position = UDim2.fromOffset(16, 164) }):Play() end
+			end)
+		end
+		task.delay(0.12, function()
+			if accountTab.Selected and refreshAccountPage then refreshAccountPage() end
+		end)
+	end)
+	local updating = false
+	local function alignContent()
+		if updating or not body.Parent then return end
+		updating = true
+		content.Size = UDim2.new(1, -sidebar.Size.X.Offset, 1, 0)
+		separator.Visible = false
+		separator.Size = UDim2.new(0, 0, 1, 0)
+		updating = false
+	end
+	chromeConnect(sidebar:GetPropertyChangedSignal("Size"), alignContent)
+	chromeConnect(content:GetPropertyChangedSignal("Size"), alignContent)
+	chromeConnect(separator:GetPropertyChangedSignal("Visible"), alignContent)
+	local function hideClip(obj)
+		obj.Visible = false
+		chromeConnect(obj:GetPropertyChangedSignal("Visible"), function() if obj.Visible then obj.Visible = false end end)
+	end
+	for _,name in ipairs({"CornerClip", "CornerClipLeft", "CornerClipRight"}) do
+		local object = content:FindFirstChild(name, true)
+		if object then hideClip(object) end
+	end
+	chromeConnect(raw(structures.Cornering):GetPropertyChangedSignal("CornerRadius"), function()
+		corner.CornerRadius = window.Maximized and UDim.new(0, 0) or UDim.new(0, 22)
+	end)
+	local refreshing = false
+	refreshSidebarChrome = function()
+		if refreshing or not body.Parent then return end
+		refreshing = true
+		local light = currentMode == "Light"
+		body.BackgroundTransparency = 1
+		sidebar.BackgroundTransparency = 0
+		sidebar.BackgroundColor3 = light and Color3.fromRGB(239, 240, 244) or Color3.fromRGB(29, 31, 39)
+		content.BackgroundTransparency = 0
+		content.BackgroundColor3 = light and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(20, 22, 29)
+		searchBody.BackgroundColor3 = light and Color3.fromRGB(226, 230, 236) or Color3.fromRGB(43, 46, 57)
+		searchBody.BackgroundTransparency = 0
+		avatar.BackgroundColor3 = light and Color3.fromRGB(173, 179, 188) or Color3.fromRGB(106, 114, 130)
+		title.TextColor3 = light and Color3.fromRGB(37, 40, 48) or Color3.fromRGB(244, 245, 249)
+		subtitle.TextColor3 = light and Color3.fromRGB(108, 113, 125) or Color3.fromRGB(169, 174, 189)
+		alignContent()
+		refreshing = false
+	end
+	for _, object in ipairs({body, sidebar, content, searchBody}) do
+		chromeConnect(object:GetPropertyChangedSignal("BackgroundTransparency"), function()
+			if refreshSidebarChrome then refreshSidebarChrome() end
+		end)
+		chromeConnect(object:GetPropertyChangedSignal("BackgroundColor3"), function()
+			if refreshSidebarChrome then refreshSidebarChrome() end
+		end)
+	end
+	refreshSidebarChrome()
+	chromeConnect(body.Destroying, function()
+		for _,connection in ipairs(chromeConnections) do connection:Disconnect() end
+		table.clear(chromeConnections)
+		refreshSidebarChrome = nil
+	end)
 end
 
 local function applyModernVisuals(targetGui)
 	currentCascadeGui = targetGui
 	local function updateVisual(obj)
-		if obj:IsA("UICorner") and obj.CornerRadius.Scale == 0 then
-			local off = obj.CornerRadius.Offset
-			if off == 10 then
-				obj.CornerRadius = UDim.new(0, 22)
-			elseif off == 6 then
-				obj.CornerRadius = UDim.new(0, 14)
-			elseif off == 5 or off == 4 then
-				obj.CornerRadius = UDim.new(0, 10)
-			end
+		if not obj.Parent then return end
+		if obj:IsA("UICorner") then
+			local owner = obj.Parent
+			if owner.Name == "Body" then obj.CornerRadius = UDim.new(0, 22)
+			elseif owner.Name == "ContentBody" or owner.Name == "Toolbar" or owner.Name == "Sidebar" then
+				obj.CornerRadius = UDim.new(0, 0)
+			elseif owner.Name == "SidebarItem" then obj.CornerRadius = UDim.new(0, 7) end
 		elseif obj.Name == "Disclosure" or obj.Name == "SectionHeader" then
 			obj.Visible = false
+		elseif obj.Name == "RightEdgeFiller" or obj.Name == "CornerClip" or obj.Name == "CornerClipLeft" or obj.Name == "CornerClipRight" then
+			if obj:IsA("GuiObject") then obj.Visible = false; obj.BackgroundTransparency = 1 end
 		elseif obj.Name == "Body" and obj:IsA("Frame") then
-			local cfg = modeColors[currentMode]
-			obj.BackgroundTransparency = cfg.bodyTrans
-			obj.BackgroundColor3 = cfg.bodyBg
+			obj.BackgroundTransparency = 1
 			createMiddlePanel(targetGui)
 		elseif obj.Name == "Sidebar" and obj:IsA("Frame") then
-			local corner = obj:FindFirstChild("SidebarCorner")
-			if not corner then
-				corner = Instance.new("UICorner")
-				corner.Name = "SidebarCorner"
-				corner.CornerRadius = UDim.new(0, 22)
-				corner.Parent = obj
-			end
-			local filler = obj:FindFirstChild("RightEdgeFiller")
-			if not filler then
-				filler = Instance.new("Frame")
-				filler.Name = "RightEdgeFiller"
-				filler.BorderSizePixel = 0
-				filler.AnchorPoint = Vector2.new(1, 0)
-				filler.Position = UDim2.new(1, 0, 0, 0)
-				filler.Size = UDim2.new(0, 32, 1, 0)
-				filler.ZIndex = obj.ZIndex
-				filler.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-				filler.BackgroundTransparency = 0
-				filler.Parent = obj
-			else
-				filler.Size = UDim2.new(0, 32, 1, 0)
-			end
-			local grad = obj:FindFirstChild("SidebarGradient")
-			if not grad then
-				grad = Instance.new("UIGradient")
-				grad.Name = "SidebarGradient"
-				grad.Rotation = 90
-				grad.Parent = obj
-				trackGradient(grad)
-			end
-			local fillerGrad = filler:FindFirstChild("FillerGradient")
-			if not fillerGrad then
-				fillerGrad = Instance.new("UIGradient")
-				fillerGrad.Name = "FillerGradient"
-				fillerGrad.Rotation = 90
-				fillerGrad.Parent = filler
-				trackGradient(fillerGrad)
-			end
-			obj.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-			obj.BackgroundTransparency = 0
-			filler.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-			filler.BackgroundTransparency = 0
+			obj.BackgroundTransparency = 1
 		elseif obj.Name == "Toolbar" and obj:IsA("Frame") then
 			obj.BackgroundTransparency = 1
-		elseif obj.Name == "Separator" and obj:IsA("Frame") then
-			local cfg = modeColors[currentMode]
-			obj.BackgroundTransparency = cfg.separatorTrans
-			obj.BackgroundColor3 = cfg.separatorBg
-			obj.ZIndex = 5
+			local shadow = obj:FindFirstChild("Shadow")
+			if shadow then shadow.Visible = false end
+		elseif obj.Name == "Separator" and obj.Parent.Name == "Body" then
+			obj.Visible = false
+			obj.Size = UDim2.new(0, 0, 1, 0)
 		elseif obj.Name == "ContentBody" and obj:IsA("Frame") then
-			local cfg = modeColors[currentMode]
-			obj.BackgroundTransparency = cfg.contentTrans
-			obj.BackgroundColor3 = cfg.contentBg
-			local cornerClip = obj:FindFirstChild("CornerClip")
-			if cornerClip then
-				cornerClip.AnchorPoint = Vector2.new(0, 0)
-				cornerClip.Position = UDim2.new(0, 0, 0, 0)
-				cornerClip.Size = UDim2.new(0, 32, 1, 0)
-				cornerClip.BorderSizePixel = 0
-				cornerClip.BackgroundColor3 = cfg.contentBg
-				cornerClip.BackgroundTransparency = cfg.contentTrans
-				cornerClip.ZIndex = obj.ZIndex
-			end
+			obj.BackgroundTransparency = 1
 		elseif obj.Name == "Toggle" and obj:IsA("Frame") then
 			obj.Size = UDim2.fromOffset(38, 22)
 			local sw = obj:FindFirstChild("Switch")
@@ -732,40 +1061,48 @@ local function applyModernVisuals(targetGui)
 				end
 			end
 		elseif obj.Name == "SidebarItem" and (obj:IsA("TextButton") or obj:IsA("Frame")) then
+			obj.Size = UDim2.new(1, 0, 0, userInputService.TouchEnabled and 44 or 32)
 			local leading = obj:FindFirstChild("Leading")
 			local titleObj = leading and leading:FindFirstChild("Title")
-			local sym = leading and leading:FindFirstChild("Symbol")
-			if sym and titleObj and sym:IsA("ImageLabel") then
-				local tText = titleObj.Text
-				local badgeCol = Color3.fromRGB(0, 122, 255)
-				if tText == "Atmosphere" then
-					badgeCol = Color3.fromRGB(255, 149, 0)
-				elseif tText == "Locomotion" then
-					badgeCol = Color3.fromRGB(52, 199, 89)
-				elseif tText == "Appearance" then
-					badgeCol = Color3.fromRGB(44, 44, 46)
-				end
-				local badge = leading:FindFirstChild("BadgeBackground")
+			local badge = leading and leading:FindFirstChild("BadgeBackground")
+			local sym = leading and (leading:FindFirstChild("Symbol") or (badge and badge:FindFirstChild("Symbol")))
+			if titleObj then
+				titleObj.FontFace = Font.new(titleObj.FontFace.Family, Enum.FontWeight.SemiBold)
+				titleObj.TextSize = 15
+				titleObj.Size = UDim2.new(1, -30, 0, 24)
+				leading.Size = UDim2.new(1, 0, 0, 24)
+				leading.AutomaticSize = Enum.AutomaticSize.None
+				local layout = leading:FindFirstChildOfClass("UIListLayout")
+				if layout then layout.Padding = UDim.new(0, 8); layout.VerticalAlignment = Enum.VerticalAlignment.Center end
+				local trailing = obj:FindFirstChild("Trailing")
+				if trailing then trailing.Visible = false end
+			end
+			if sym and titleObj then
+				local colors = {Telemetry=Color3.fromRGB(0,122,255),Atmosphere=Color3.fromRGB(255,149,0),Locomotion=Color3.fromRGB(52,199,89),Appearance=Color3.fromRGB(44,44,46)}
 				if not badge then
 					badge = Instance.new("Frame")
 					badge.Name = "BadgeBackground"
 					badge.Size = UDim2.fromOffset(22, 22)
-					badge.AnchorPoint = Vector2.new(0, 0.5)
-					badge.Position = UDim2.new(0, 0, 0.5, 0)
+					badge.LayoutOrder = 1
 					badge.BorderSizePixel = 0
-					badge.BackgroundColor3 = badgeCol
-					badge.ZIndex = sym.ZIndex
-					local bCorner = Instance.new("UICorner")
-					bCorner.CornerRadius = UDim.new(0, 6)
-					bCorner.Parent = badge
 					badge.Parent = leading
-					sym.ZIndex = badge.ZIndex + 1
-					sym.Size = UDim2.fromOffset(14, 14)
-					sym.AnchorPoint = Vector2.new(0.5, 0.5)
-					sym.Position = UDim2.fromScale(0.5, 0.5)
+					local corner = Instance.new("UICorner")
+					corner.CornerRadius = UDim.new(0, 6)
+					corner.Parent = badge
 					sym.Parent = badge
-				else
-					badge.BackgroundColor3 = badgeCol
+				end
+				local fullIcon = titleObj.Text == "Appearance"
+				badge.BackgroundColor3 = colors[titleObj.Text] or colors.Telemetry
+				badge.BackgroundTransparency = fullIcon and 1 or 0
+				sym.Size = fullIcon and UDim2.fromScale(1, 1) or UDim2.fromOffset(14, 14)
+				sym.AnchorPoint = Vector2.new(0.5, 0.5)
+				sym.Position = UDim2.fromScale(0.5, 0.5)
+				sym.ImageColor3 = Color3.new(1, 1, 1)
+				if not sym:GetAttribute("StaconfWhiteSymbol") then
+					sym:SetAttribute("StaconfWhiteSymbol", true)
+					chromeConnect(sym:GetPropertyChangedSignal("ImageColor3"), function()
+						if sym.ImageColor3 ~= Color3.new(1, 1, 1) then sym.ImageColor3 = Color3.new(1, 1, 1) end
+					end)
 				end
 			end
 		end
@@ -774,8 +1111,9 @@ local function applyModernVisuals(targetGui)
 	for _, descendant in ipairs(targetGui:GetDescendants()) do
 		updateVisual(descendant)
 	end
+	installSidebarChrome(targetGui)
 
-	targetGui.DescendantAdded:Connect(function(descendant)
+	chromeConnect(targetGui.DescendantAdded, function(descendant)
 		task.defer(updateVisual, descendant)
 	end)
 end
@@ -787,7 +1125,7 @@ local function smoothTransition(newMode, newAccentName)
 
 	if targetGui then
 		for _, desc in ipairs(targetGui:GetDescendants()) do
-			if desc:IsA("GuiObject") and desc.Name ~= "RightEdgeFiller" and desc.Name ~= "Sidebar" then
+			if desc:IsA("GuiObject") and desc.Name ~= "RightEdgeFiller" and desc.Name ~= "Sidebar" and desc.Name ~= "Body" and desc.Name ~= "ContentBody" and desc.Name ~= "SidebarSearch" then
 				local entry = {
 					BackgroundColor3 = desc.BackgroundColor3,
 					BackgroundTransparency = desc.BackgroundTransparency,
@@ -815,21 +1153,21 @@ local function smoothTransition(newMode, newAccentName)
 
 		if targetGui then
 			local body = targetGui:FindFirstChild("Body", true)
-			if body and body:IsA("Frame") then
+			if body and body:IsA("Frame") and not refreshSidebarChrome then
 				tweenService:Create(body, tweenInfo, {
 					BackgroundColor3 = cfg.bodyBg,
 					BackgroundTransparency = cfg.bodyTrans,
 				}):Play()
 			end
 			local content = targetGui:FindFirstChild("ContentBody", true)
-			if content and content:IsA("Frame") then
+			if content and content:IsA("Frame") and not refreshSidebarChrome then
 				tweenService:Create(content, tweenInfo, {
 					BackgroundColor3 = cfg.contentBg,
 					BackgroundTransparency = cfg.contentTrans,
 				}):Play()
 			end
 			local sep = targetGui:FindFirstChild("Separator", true)
-			if sep and sep:IsA("Frame") then
+			if sep and sep:IsA("Frame") and not refreshSidebarChrome then
 				tweenService:Create(sep, tweenInfo, {
 					BackgroundColor3 = cfg.separatorBg,
 					BackgroundTransparency = cfg.separatorTrans,
@@ -843,6 +1181,9 @@ local function smoothTransition(newMode, newAccentName)
 		app.Accent = cascade.Accents[newAccentName]
 	end
 
+	if refreshSidebarChrome then refreshSidebarChrome() end
+	if refreshMiddlePanel then refreshMiddlePanel() end
+	if refreshAccountPage then refreshAccountPage() end
 	task.defer(function()
 		for desc, oldProps in pairs(snapshot) do
 			if desc and desc.Parent then
@@ -1044,7 +1385,7 @@ do
 
 	do
 		local row = titledRow(envForm, "Atmosphere Preset", "Quick switch ambient grading")
-		row:Right():PopUpButton({
+		crispPopUpButton(row:Right(), {
 			Options = { "Default", "Neon Dusk", "Midnight Void", "Golden Hour" },
 			Value = 1,
 			ValueChanged = function(self, index)
@@ -1173,7 +1514,7 @@ do
 
 	do
 		local row = titledRow(modeForm, "Interface Mode", "Select system lighting scheme")
-		row:Right():PopUpButton({
+		crispPopUpButton(row:Right(), {
 			Options = { "Dark", "Light" },
 			Value = (currentMode == "Dark" and 1 or 2),
 			ValueChanged = function(self, index)
@@ -1194,7 +1535,7 @@ do
 
 	do
 		local row = titledRow(themeForm, "Colour", "Tint color applied to active controls and tabs")
-		row:Right():PopUpButton({
+		crispPopUpButton(row:Right(), {
 			Options = accentList,
 			Value = 1,
 			ValueChanged = function(self, index)
@@ -1206,7 +1547,7 @@ do
 
 	do
 		local row = titledRow(themeForm, "Text Highlight Colour", "Accent tint for selected text elements")
-		row:Right():PopUpButton({
+		crispPopUpButton(row:Right(), {
 			Options = { "Automatic", "Blue", "Purple", "Pink", "Red", "Orange", "Yellow", "Green", "Graphite" },
 			Value = 1,
 		})
@@ -1214,7 +1555,7 @@ do
 
 	do
 		local row = titledRow(themeForm, "Icon and Widget Style", "Visual presentation of interface elements")
-		row:Right():PopUpButton({
+		crispPopUpButton(row:Right(), {
 			Options = { "Default", "Dark", "Clear", "Tinted" },
 			Value = 1,
 		})
@@ -1222,7 +1563,7 @@ do
 
 	do
 		local row = titledRow(themeForm, "Folder Colour", "Directory and group container tint")
-		row:Right():PopUpButton({
+		crispPopUpButton(row:Right(), {
 			Options = { "Automatic", "Blue", "Purple", "Pink", "Graphite" },
 			Value = 1,
 		})
@@ -1282,6 +1623,159 @@ do
 				openMiddlePanel()
 			end,
 		})
+	end
+end
+
+do
+	accountTab = window:Tab({
+		Title = "Account",
+	})
+	local accountButton = accountTab.Structures.Body
+	accountButton = typeof(accountButton) == "Instance" and accountButton or accountButton.__instance
+	accountButton.Visible = false
+	local page = accountTab.Structures.Page
+	page = typeof(page) == "Instance" and page or page.__instance
+	local pageLayout = page:FindFirstChildOfClass("UIListLayout")
+	if pageLayout then pageLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center end
+	local profile = Instance.new("Frame")
+	profile.Name = "ProfileSurface"
+	profile.Size = UDim2.new(1, -34, 0, 344)
+	profile.BorderSizePixel = 0
+	profile.LayoutOrder = 1
+	profile.Parent = page
+	local profileConstraint = Instance.new("UISizeConstraint")
+	profileConstraint.MaxSize = Vector2.new(420, 344)
+	profileConstraint.Parent = profile
+	local profileCorner = Instance.new("UICorner")
+	profileCorner.CornerRadius = UDim.new(0, 16)
+	profileCorner.Parent = profile
+	local profileLayout = Instance.new("Frame")
+	profileLayout.Name = "ProfileLayout"
+	profileLayout.Size = UDim2.fromScale(1, 1)
+	profileLayout.BackgroundTransparency = 1
+	profileLayout.BorderSizePixel = 0
+	profileLayout.Parent = profile
+	local profileStroke = Instance.new("UIStroke")
+	profileStroke.Name = "ProfileStroke"
+	profileStroke.Thickness = 1
+	profileStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+	profileStroke.Parent = profile
+	local header = Instance.new("Frame")
+	header.Name = "AccountHeader"
+	header.Size = UDim2.new(1, 0, 0, 148)
+	header.BackgroundTransparency = 1
+	header.Parent = profileLayout
+	local avatar = Instance.new("Frame")
+	avatar.Name = "AccountAvatar"
+	avatar.AnchorPoint = Vector2.new(0.5, 0)
+	avatar.Position = UDim2.new(0.5, 0, 0, 26)
+	avatar.Size = UDim2.fromOffset(84, 84)
+	avatar.BorderSizePixel = 0
+	avatar.Parent = header
+	local avatarCorner = Instance.new("UICorner")
+	avatarCorner.CornerRadius = UDim.new(1, 0)
+	avatarCorner.Parent = avatar
+	local head = Instance.new("Frame")
+	head.AnchorPoint = Vector2.new(0.5, 0)
+	head.Position = UDim2.new(0.5, 0, 0, 18)
+	head.Size = UDim2.fromOffset(26, 26)
+	head.BackgroundColor3 = Color3.new(1, 1, 1)
+	head.BorderSizePixel = 0
+	head.Parent = avatar
+	local headCorner = Instance.new("UICorner")
+	headCorner.CornerRadius = UDim.new(1, 0)
+	headCorner.Parent = head
+	local shoulders = Instance.new("Frame")
+	shoulders.AnchorPoint = Vector2.new(0.5, 0)
+	shoulders.Position = UDim2.new(0.5, 0, 0, 47)
+	shoulders.Size = UDim2.fromOffset(48, 28)
+	shoulders.BackgroundColor3 = Color3.new(1, 1, 1)
+	shoulders.BorderSizePixel = 0
+	shoulders.Parent = avatar
+	local shouldersCorner = Instance.new("UICorner")
+	shouldersCorner.CornerRadius = UDim.new(1, 0)
+	shouldersCorner.Parent = shoulders
+	local information = Instance.new("Frame")
+	information.Name = "AccountInformation"
+	information.Position = UDim2.new(0, 16, 0, 164)
+	information.Size = UDim2.new(1, -32, 0, 164)
+	information.BorderSizePixel = 0
+	information.Parent = profileLayout
+	local informationCorner = Instance.new("UICorner")
+	informationCorner.CornerRadius = UDim.new(0, 12)
+	informationCorner.Parent = information
+	local values = {
+		{"Gakuran Name", "Free User"},
+		{"Roblox Username", "Not connected"},
+		{"Display Name", "Free User"},
+	}
+	local valueLabels = {}
+	for index, item in ipairs(values) do
+		local row = Instance.new("Frame")
+		row.Name = "AccountRow" .. index
+		row.Position = UDim2.fromOffset(0, (index - 1) * 54)
+		row.Size = UDim2.new(1, 0, 0, 54)
+		row.BackgroundTransparency = 1
+		row.Parent = information
+		local label = Instance.new("TextLabel")
+		label.Text = item[1]
+		label.Position = UDim2.fromOffset(16, 8)
+		label.Size = UDim2.new(1, -32, 0, 16)
+		label.BackgroundTransparency = 1
+		label.FontFace = Font.new("rbxassetid://12187365364", Enum.FontWeight.Regular)
+		label.TextSize = 12
+		label.TextXAlignment = Enum.TextXAlignment.Left
+		label.Parent = row
+		local value = Instance.new("TextLabel")
+		value.Text = item[2]
+		value.Position = UDim2.fromOffset(16, 25)
+		value.Size = UDim2.new(1, -32, 0, 20)
+		value.BackgroundTransparency = 1
+		value.FontFace = Font.new("rbxassetid://12187365364", Enum.FontWeight.Regular)
+		value.TextSize = 15
+		value.TextXAlignment = Enum.TextXAlignment.Left
+		value.TextTruncate = Enum.TextTruncate.AtEnd
+		value.Parent = row
+		table.insert(valueLabels, {label, value})
+		if index < #values then
+			local divider = Instance.new("Frame")
+			divider.Name = "AccountDivider"
+			divider.Position = UDim2.new(0, 16, 1, -1)
+			divider.Size = UDim2.new(1, -32, 0, 1)
+			divider.BorderSizePixel = 0
+			divider.Parent = row
+		end
+	end
+	local accountRefreshing = false
+	refreshAccountPage = function()
+		if accountRefreshing then return end
+		if not page.Parent then return end
+		accountRefreshing = true
+		local light = currentMode == "Light"
+		local primary = light and Color3.fromRGB(37, 40, 48) or Color3.fromRGB(244, 245, 249)
+		local secondary = light and Color3.fromRGB(108, 113, 125) or Color3.fromRGB(169, 174, 189)
+		local surface = light and Color3.fromRGB(250, 250, 252) or Color3.fromRGB(26, 28, 36)
+		local informationSurface = light and Color3.fromRGB(242, 243, 247) or Color3.fromRGB(34, 37, 47)
+		local divider = light and Color3.fromRGB(222, 224, 230) or Color3.fromRGB(52, 55, 67)
+		avatar.BackgroundColor3 = light and Color3.fromRGB(173, 179, 188) or Color3.fromRGB(106, 114, 130)
+		profile.BackgroundColor3 = surface
+		profileStroke.Color = divider
+		profileStroke.Transparency = light and 0.35 or 0.55
+		information.BackgroundColor3 = informationSurface
+		for _, pair in ipairs(valueLabels) do
+			pair[1].TextColor3 = secondary
+			pair[2].TextColor3 = primary
+		end
+		for _, object in ipairs(information:GetDescendants()) do
+			if object.Name == "AccountDivider" then object.BackgroundColor3 = divider end
+		end
+		accountRefreshing = false
+	end
+	refreshAccountPage()
+	for _, object in ipairs({profile, information}) do
+		chromeConnect(object:GetPropertyChangedSignal("BackgroundColor3"), function()
+			if not accountRefreshing then task.defer(refreshAccountPage) end
+		end)
 	end
 end
 
