@@ -73,6 +73,53 @@ userInputService.InputEnded:Connect(function(input, processed)
 	end
 end)
 
+local function applyModernCorners(targetGui)
+	local function updateCorner(c)
+		if c:IsA("UICorner") and c.CornerRadius.Scale == 0 then
+			local off = c.CornerRadius.Offset
+			if off == 10 then
+				c.CornerRadius = UDim.new(0, 22)
+			elseif off == 6 then
+				c.CornerRadius = UDim.new(0, 14)
+			elseif off == 5 or off == 4 then
+				c.CornerRadius = UDim.new(0, 10)
+			end
+		end
+	end
+
+	for _, descendant in ipairs(targetGui:GetDescendants()) do
+		updateCorner(descendant)
+	end
+
+	targetGui.DescendantAdded:Connect(function(descendant)
+		if descendant:IsA("UICorner") then
+			task.defer(updateCorner, descendant)
+		end
+	end)
+end
+
+task.defer(function()
+	local targets = {}
+	if typeof(gethui) == "function" then
+		pcall(function()
+			table.insert(targets, gethui())
+		end)
+	end
+	pcall(function()
+		table.insert(targets, coreGui)
+	end)
+	if localPlayer and localPlayer:FindFirstChild("PlayerGui") then
+		table.insert(targets, localPlayer.PlayerGui)
+	end
+	for _, t in ipairs(targets) do
+		local c = t:FindFirstChild("Cascade")
+		if c then
+			applyModernCorners(c)
+			break
+		end
+	end
+end)
+
 do
 	local runtimeSection = window:Section({
 		Title = "RUNTIME MATRIX",

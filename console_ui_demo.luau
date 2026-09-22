@@ -441,7 +441,7 @@ local function runConsoleApp(stateContext)
 	mainWindow.Parent = screenGui
 
 	local windowCorner = Instance.new("UICorner")
-	windowCorner.CornerRadius = UDim.new(0, 10)
+	windowCorner.CornerRadius = UDim.new(0, 20)
 	windowCorner.Parent = mainWindow
 
 	local windowStroke = Instance.new("UIStroke")
@@ -543,7 +543,7 @@ local function runConsoleApp(stateContext)
 	searchContainer.Parent = header
 
 	local searchCorner = Instance.new("UICorner")
-	searchCorner.CornerRadius = UDim.new(0, 6)
+	searchCorner.CornerRadius = UDim.new(0, 10)
 	searchCorner.Parent = searchContainer
 
 	local searchStroke = Instance.new("UIStroke")
@@ -596,7 +596,7 @@ local function runConsoleApp(stateContext)
 	collapseBtn.Parent = header
 
 	local collapseCorner = Instance.new("UICorner")
-	collapseCorner.CornerRadius = UDim.new(0, 6)
+	collapseCorner.CornerRadius = UDim.new(0, 9)
 	collapseCorner.Parent = collapseBtn
 
 	local closeBtn = Instance.new("TextButton")
@@ -612,7 +612,7 @@ local function runConsoleApp(stateContext)
 	closeBtn.Parent = header
 
 	local closeCorner = Instance.new("UICorner")
-	closeCorner.CornerRadius = UDim.new(0, 6)
+	closeCorner.CornerRadius = UDim.new(0, 9)
 	closeCorner.Parent = closeBtn
 
 	local dragging = false
@@ -695,7 +695,7 @@ local function runConsoleApp(stateContext)
 	filterPillGroup.Parent = filterBar
 
 	local filterGroupCorner = Instance.new("UICorner")
-	filterGroupCorner.CornerRadius = UDim.new(0, 6)
+	filterGroupCorner.CornerRadius = UDim.new(0, 10)
 	filterGroupCorner.Parent = filterPillGroup
 
 	local filterGroupStroke = Instance.new("UIStroke")
@@ -713,7 +713,7 @@ local function runConsoleApp(stateContext)
 	filterGlider.Parent = filterPillGroup
 
 	local filterGliderCorner = Instance.new("UICorner")
-	filterGliderCorner.CornerRadius = UDim.new(0, 4)
+	filterGliderCorner.CornerRadius = UDim.new(0, 8)
 	filterGliderCorner.Parent = filterGlider
 
 	local filterButtons = {}
@@ -787,7 +787,7 @@ local function runConsoleApp(stateContext)
 	bottomDock.Parent = innerContent
 
 	local dockCorner = Instance.new("UICorner")
-	dockCorner.CornerRadius = UDim.new(0, 14)
+	dockCorner.CornerRadius = UDim.new(0, 24)
 	dockCorner.Parent = bottomDock
 
 	local dockStroke = Instance.new("UIStroke")
@@ -805,7 +805,7 @@ local function runConsoleApp(stateContext)
 	dockGlider.Parent = bottomDock
 
 	local dockGliderCorner = Instance.new("UICorner")
-	dockGliderCorner.CornerRadius = UDim.new(0, 10)
+	dockGliderCorner.CornerRadius = UDim.new(0, 16)
 	dockGliderCorner.Parent = dockGlider
 
 	local dockGliderStroke = Instance.new("UIStroke")
@@ -1195,7 +1195,7 @@ local function runConsoleApp(stateContext)
 		card.Parent = scrollContent
 
 		local cardCorner = Instance.new("UICorner")
-		cardCorner.CornerRadius = UDim.new(0, 6)
+		cardCorner.CornerRadius = UDim.new(0, 14)
 		cardCorner.Parent = card
 
 		local cardStroke = Instance.new("UIStroke")
@@ -1406,7 +1406,7 @@ local function runConsoleApp(stateContext)
 			valueBox.Parent = widgetArea
 
 			local boxCorn = Instance.new("UICorner")
-			boxCorn.CornerRadius = UDim.new(0, 4)
+			boxCorn.CornerRadius = UDim.new(0, 8)
 			boxCorn.Parent = valueBox
 
 			local boxStroke = Instance.new("UIStroke")
@@ -1488,7 +1488,7 @@ local function runConsoleApp(stateContext)
 			dropBtn.Parent = widgetArea
 
 			local dropCorn = Instance.new("UICorner")
-			dropCorn.CornerRadius = UDim.new(0, 4)
+			dropCorn.CornerRadius = UDim.new(0, 8)
 			dropCorn.Parent = dropBtn
 
 			local dropStroke = Instance.new("UIStroke")
@@ -1529,7 +1529,7 @@ local function runConsoleApp(stateContext)
 			keyBtn.Parent = widgetArea
 
 			local keyCorn = Instance.new("UICorner")
-			keyCorn.CornerRadius = UDim.new(0, 4)
+			keyCorn.CornerRadius = UDim.new(0, 8)
 			keyCorn.Parent = keyBtn
 
 			local keyStroke = Instance.new("UIStroke")
@@ -1575,7 +1575,7 @@ local function runConsoleApp(stateContext)
 			actBtn.Parent = widgetArea
 
 			local actCorn = Instance.new("UICorner")
-			actCorn.CornerRadius = UDim.new(0, 4)
+			actCorn.CornerRadius = UDim.new(0, 8)
 			actCorn.Parent = actBtn
 
 			local actStroke = Instance.new("UIStroke")
