@@ -3,6 +3,7 @@ local players = game:GetService("Players")
 local lighting = game:GetService("Lighting")
 local userInputService = game:GetService("UserInputService")
 local workspaceService = game:GetService("Workspace")
+local tweenService = game:GetService("TweenService")
 
 local localPlayer = players.LocalPlayer or players:GetPropertyChangedSignal("LocalPlayer"):Wait()
 
@@ -120,7 +121,86 @@ userInputService.InputEnded:Connect(function(input, processed)
 	end
 end)
 
+local currentMode = "Dark"
+local currentAccent = "Blue"
+local currentCascadeGui = nil
+
+local modeColors = {
+	Dark = {
+		bodyBg = Color3.fromRGB(16, 18, 25),
+		bodyTrans = 0.32,
+		contentBg = Color3.fromRGB(14, 16, 22),
+		contentTrans = 0.28,
+		sidebarTop = Color3.fromRGB(30, 34, 46),
+		sidebarBottom = Color3.fromRGB(18, 20, 28),
+		sidebarTransTop = 0.35,
+		sidebarTransBottom = 0.48,
+		separatorBg = Color3.fromRGB(40, 44, 58),
+		separatorTrans = 0.4,
+	},
+	Light = {
+		bodyBg = Color3.fromRGB(240, 242, 246),
+		bodyTrans = 0.15,
+		contentBg = Color3.fromRGB(255, 255, 255),
+		contentTrans = 0.08,
+		sidebarTop = Color3.fromRGB(255, 255, 255),
+		sidebarBottom = Color3.fromRGB(224, 227, 235),
+		sidebarTransTop = 0.08,
+		sidebarTransBottom = 0.22,
+		separatorBg = Color3.fromRGB(218, 221, 227),
+		separatorTrans = 0.4,
+	},
+}
+
+local gradTopVal = Instance.new("Color3Value")
+gradTopVal.Value = modeColors.Dark.sidebarTop
+local gradBottomVal = Instance.new("Color3Value")
+gradBottomVal.Value = modeColors.Dark.sidebarBottom
+local gradTopTransVal = Instance.new("NumberValue")
+gradTopTransVal.Value = modeColors.Dark.sidebarTransTop
+local gradBottomTransVal = Instance.new("NumberValue")
+gradBottomTransVal.Value = modeColors.Dark.sidebarTransBottom
+
+local trackedGradients = {}
+
+local function syncGradient(grad)
+	if grad and grad.Parent then
+		grad.Color = ColorSequence.new({
+			ColorSequenceKeypoint.new(0, gradTopVal.Value),
+			ColorSequenceKeypoint.new(1, gradBottomVal.Value),
+		})
+		grad.Transparency = NumberSequence.new({
+			NumberSequenceKeypoint.new(0, math.clamp(gradTopTransVal.Value, 0, 1)),
+			NumberSequenceKeypoint.new(1, math.clamp(gradBottomTransVal.Value, 0, 1)),
+		})
+	end
+end
+
+local function trackGradient(grad)
+	table.insert(trackedGradients, grad)
+	syncGradient(grad)
+	grad.Destroying:Connect(function()
+		for i = #trackedGradients, 1, -1 do
+			if trackedGradients[i] == grad then
+				table.remove(trackedGradients, i)
+			end
+		end
+	end)
+end
+
+local function onGradientValueChanged()
+	for _, grad in ipairs(trackedGradients) do
+		syncGradient(grad)
+	end
+end
+
+gradTopVal.Changed:Connect(onGradientValueChanged)
+gradBottomVal.Changed:Connect(onGradientValueChanged)
+gradTopTransVal.Changed:Connect(onGradientValueChanged)
+gradBottomTransVal.Changed:Connect(onGradientValueChanged)
+
 local function applyModernVisuals(targetGui)
+	currentCascadeGui = targetGui
 	local function updateVisual(obj)
 		if obj:IsA("UICorner") and obj.CornerRadius.Scale == 0 then
 			local off = obj.CornerRadius.Offset
@@ -134,16 +214,60 @@ local function applyModernVisuals(targetGui)
 		elseif obj.Name == "Disclosure" then
 			obj.Visible = false
 		elseif obj.Name == "Body" and obj:IsA("Frame") then
-			obj.BackgroundTransparency = 0.32
-			obj.BackgroundColor3 = Color3.fromRGB(16, 18, 25)
+			local cfg = modeColors[currentMode]
+			obj.BackgroundTransparency = cfg.bodyTrans
+			obj.BackgroundColor3 = cfg.bodyBg
 		elseif obj.Name == "Sidebar" and obj:IsA("Frame") then
-			obj.BackgroundTransparency = 0.45
-			obj.BackgroundColor3 = Color3.fromRGB(24, 27, 38)
+			local corner = obj:FindFirstChild("SidebarCorner")
+			if not corner then
+				corner = Instance.new("UICorner")
+				corner.Name = "SidebarCorner"
+				corner.CornerRadius = UDim.new(0, 22)
+				corner.Parent = obj
+			end
+			local filler = obj:FindFirstChild("RightEdgeFiller")
+			if not filler then
+				filler = Instance.new("Frame")
+				filler.Name = "RightEdgeFiller"
+				filler.BorderSizePixel = 0
+				filler.AnchorPoint = Vector2.new(1, 0)
+				filler.Position = UDim2.new(1, 0, 0, 0)
+				filler.Size = UDim2.new(0, 24, 1, 0)
+				filler.ZIndex = obj.ZIndex
+				filler.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+				filler.BackgroundTransparency = 0
+				filler.Parent = obj
+			end
+			local grad = obj:FindFirstChild("SidebarGradient")
+			if not grad then
+				grad = Instance.new("UIGradient")
+				grad.Name = "SidebarGradient"
+				grad.Rotation = 90
+				grad.Parent = obj
+				trackGradient(grad)
+			end
+			local fillerGrad = filler:FindFirstChild("FillerGradient")
+			if not fillerGrad then
+				fillerGrad = Instance.new("UIGradient")
+				fillerGrad.Name = "FillerGradient"
+				fillerGrad.Rotation = 90
+				fillerGrad.Parent = filler
+				trackGradient(fillerGrad)
+			end
+			obj.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+			obj.BackgroundTransparency = 0
+			filler.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+			filler.BackgroundTransparency = 0
 		elseif obj.Name == "Toolbar" and obj:IsA("Frame") then
 			obj.BackgroundTransparency = 1
+		elseif obj.Name == "Separator" and obj:IsA("Frame") then
+			local cfg = modeColors[currentMode]
+			obj.BackgroundTransparency = cfg.separatorTrans
+			obj.BackgroundColor3 = cfg.separatorBg
 		elseif obj.Name == "ContentBody" and obj:IsA("Frame") then
-			obj.BackgroundTransparency = 0.28
-			obj.BackgroundColor3 = Color3.fromRGB(14, 16, 22)
+			local cfg = modeColors[currentMode]
+			obj.BackgroundTransparency = cfg.contentTrans
+			obj.BackgroundColor3 = cfg.contentBg
 		end
 	end
 
@@ -155,6 +279,103 @@ local function applyModernVisuals(targetGui)
 		task.defer(updateVisual, descendant)
 	end)
 end
+
+local function smoothTransition(newMode, newAccentName)
+	local tweenInfo = TweenInfo.new(0.38, Enum.EasingStyle.Quart, Enum.EasingDirection.Out)
+	local targetGui = currentCascadeGui
+	local snapshot = {}
+
+	if targetGui then
+		for _, desc in ipairs(targetGui:GetDescendants()) do
+			if desc:IsA("GuiObject") and desc.Name ~= "RightEdgeFiller" and desc.Name ~= "Sidebar" then
+				local entry = {
+					BackgroundColor3 = desc.BackgroundColor3,
+					BackgroundTransparency = desc.BackgroundTransparency,
+				}
+				if desc:IsA("TextLabel") or desc:IsA("TextButton") or desc:IsA("TextBox") then
+					entry.TextColor3 = desc.TextColor3
+				end
+				if desc:IsA("ImageLabel") or desc:IsA("ImageButton") then
+					entry.ImageColor3 = desc.ImageColor3
+				end
+				snapshot[desc] = entry
+			end
+		end
+	end
+
+	if newMode and modeColors[newMode] and newMode ~= currentMode then
+		currentMode = newMode
+		app.Theme = (newMode == "Dark" and cascade.Themes.Dark or cascade.Themes.Light)
+		local cfg = modeColors[newMode]
+
+		tweenService:Create(gradTopVal, tweenInfo, { Value = cfg.sidebarTop }):Play()
+		tweenService:Create(gradBottomVal, tweenInfo, { Value = cfg.sidebarBottom }):Play()
+		tweenService:Create(gradTopTransVal, tweenInfo, { Value = cfg.sidebarTransTop }):Play()
+		tweenService:Create(gradBottomTransVal, tweenInfo, { Value = cfg.sidebarTransBottom }):Play()
+
+		if targetGui then
+			local body = targetGui:FindFirstChild("Body", true)
+			if body and body:IsA("Frame") then
+				tweenService:Create(body, tweenInfo, {
+					BackgroundColor3 = cfg.bodyBg,
+					BackgroundTransparency = cfg.bodyTrans,
+				}):Play()
+			end
+			local content = targetGui:FindFirstChild("ContentBody", true)
+			if content and content:IsA("Frame") then
+				tweenService:Create(content, tweenInfo, {
+					BackgroundColor3 = cfg.contentBg,
+					BackgroundTransparency = cfg.contentTrans,
+				}):Play()
+			end
+			local sep = targetGui:FindFirstChild("Separator", true)
+			if sep and sep:IsA("Frame") then
+				tweenService:Create(sep, tweenInfo, {
+					BackgroundColor3 = cfg.separatorBg,
+					BackgroundTransparency = cfg.separatorTrans,
+				}):Play()
+			end
+		end
+	end
+
+	if newAccentName and cascade.Accents[newAccentName] and newAccentName ~= currentAccent then
+		currentAccent = newAccentName
+		app.Accent = cascade.Accents[newAccentName]
+	end
+
+	task.defer(function()
+		for desc, oldProps in pairs(snapshot) do
+			if desc and desc.Parent then
+				local props = {}
+				if oldProps.BackgroundColor3 and desc.BackgroundColor3 ~= oldProps.BackgroundColor3 then
+					local target = desc.BackgroundColor3
+					desc.BackgroundColor3 = oldProps.BackgroundColor3
+					props.BackgroundColor3 = target
+				end
+				if oldProps.BackgroundTransparency and math.abs(desc.BackgroundTransparency - oldProps.BackgroundTransparency) > 0.02 then
+					local target = desc.BackgroundTransparency
+					desc.BackgroundTransparency = oldProps.BackgroundTransparency
+					props.BackgroundTransparency = target
+				end
+				if oldProps.TextColor3 and desc:IsA("TextLabel") and desc.TextColor3 ~= oldProps.TextColor3 then
+					local target = desc.TextColor3
+					desc.TextColor3 = oldProps.TextColor3
+					props.TextColor3 = target
+				end
+				if oldProps.ImageColor3 and desc:IsA("ImageLabel") and desc.ImageColor3 ~= oldProps.ImageColor3 then
+					local target = desc.ImageColor3
+					desc.ImageColor3 = oldProps.ImageColor3
+					props.ImageColor3 = target
+				end
+				if next(props) then
+					tweenService:Create(desc, tweenInfo, props):Play()
+				end
+			end
+		end
+	end)
+end
+
+_G.CascadeSmoothTransition = smoothTransition
 
 task.defer(function()
 	local targets = {}
@@ -463,14 +684,10 @@ do
 		local row = titledRow(modeForm, "Interface Mode", "Select system lighting scheme")
 		row:Right():PopUpButton({
 			Options = { "Dark", "Light" },
-			Value = 1,
+			Value = (currentMode == "Dark" and 1 or 2),
 			ValueChanged = function(self, index)
 				local mode = self.Options[index]
-				if mode == "Dark" then
-					app.Theme = cascade.Themes.Dark
-				else
-					app.Theme = cascade.Themes.Light
-				end
+				smoothTransition(mode, nil)
 			end,
 		})
 	end
@@ -491,9 +708,7 @@ do
 			Value = 1,
 			ValueChanged = function(self, index)
 				local selectedName = self.Options[index]
-				if cascade.Accents[selectedName] then
-					app.Accent = cascade.Accents[selectedName]
-				end
+				smoothTransition(nil, selectedName)
 			end,
 		})
 	end
