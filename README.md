@@ -4,7 +4,7 @@
 
 The Settings tab supports named local profiles, Save, Load, Refresh, Delete, startup loading, and restoring session defaults. Overwrite, Delete, and Reset require a second click within four seconds. Profile names accept 1–32 ASCII letters, numbers, spaces, hyphens, or underscores.
 
-Profiles store the 15 main-page controls, including appearance, hotkey, camera, lighting, and movement values. Loading applies the existing control callbacks. Pointer modal demo controls and account information are not included. Reset restores values captured when this script started; saved profiles are retained.
+Profiles store 16 controls, including appearance, hotkey, camera, lighting, movement, and Glass Strength. Settings → Liquid Glass exposes a 1×–20× strength slider with a live multiplier label. The default is 4.5×; strength changes the main window glass mesh thickness without changing window opacity. Existing profiles without this field leave the current strength unchanged. Loading applies the existing control callbacks. Pointer modal demo controls and account information are not included. Reset restores values captured when this script started; saved profiles are retained.
 
 Storage uses the executor workspace file `Staconf/settings-v1.json`, with the previous file copied to `Staconf/settings-v1.json.bak` before writes. Requires `readfile`, `writefile`, and `isfile`; folder creation is used when available. Corrupt or unsupported data blocks writes until repaired and refreshed. There is no cloud sync or background autosave.
 

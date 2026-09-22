@@ -102,6 +102,11 @@ local window = app:Window({
 
 local currentMode = "Dark"
 local currentAccent = "Blue"
+local glassStrength = 4.5
+
+local function windowGlassThickness()
+	return 0.01 * glassStrength
+end
 
 
 local function createNotificationGlass(gui, scale, options)
@@ -189,7 +194,7 @@ local function createNotificationGlass(gui, scale, options)
 			for index, spec in ipairs(item.layout) do
 				local part = item.parts[index]
 				local w, h = math.max(0.001, spec[4] * width), math.max(0.001, spec[5] * height)
-				local thickness = options.Thickness or 0.01
+				local thickness = options.GetThickness and options.GetThickness() or options.Thickness or 0.01
 				part.Size = spec[7] and Vector3.new(thickness, w, h) or Vector3.new(thickness, h, w)
 				part.CFrame = CFrame.new(world + cam.RightVector * spec[2] * width - cam.UpVector * spec[3] * height) * cam.Rotation * CFrame.Angles(0, 0, math.rad(spec[6])) * CFrame.Angles(0, -math.pi / 2, 0)
 				part.Color = currentMode == "Light" and Color3.fromRGB(226, 232, 240) or Color3.fromRGB(85, 92, 108)
@@ -1227,7 +1232,7 @@ local function installSidebarChrome(targetGui)
 	local windowGlass = createNotificationGlass(targetGui, { Scale = 1 }, {
 		Name = "StacOnfWindowGlass",
 		Transparency = 0.86,
-		Thickness = 0.045,
+		GetThickness = windowGlassThickness,
 		HighlightTransparency = 0.99,
 		Depth = 0.8,
 	})
@@ -2150,6 +2155,18 @@ do
 	local settingsTab = window:Tab({
 		Title = "Settings",
 		Icon = getAsset("config.png", "https://raw.githubusercontent.com/x8lua/Staconf/main/assets/config.png"),
+	})
+	local glassForm = settingsTab:PageSection({ Title = "Liquid Glass" }):Form()
+	local glassRow = titledRow(glassForm, "Glass Strength", "Main window distortion. Opacity stays unchanged.")
+	local strengthLabel = glassRow:Right():Label({ Text = "4.5×" })
+	settingControl("glassStrength", glassRow:Right(), "Slider", {
+		Minimum = 1,
+		Maximum = 20,
+		Value = glassStrength,
+		ValueChanged = function(self, value)
+			glassStrength = math.clamp(value, 1, 20)
+			strengthLabel.Text = ("%.1f×"):format(glassStrength)
+		end,
 	})
 	local form = settingsTab:PageSection({
 		Title = "Configuration",
