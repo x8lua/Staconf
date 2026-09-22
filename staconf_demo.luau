@@ -109,6 +109,84 @@ local function windowGlassThickness()
 end
 
 
+
+local function createCurvedGlass()
+	local assetService = game:GetService("AssetService")
+	local mesh = assetService:CreateEditableMesh()
+	assert(mesh, "EditableMesh unavailable")
+	local vertices = {}
+	local normals = {}
+	local rings = 8
+	local segments = 48
+	local function vertex()
+		local id = mesh:AddVertex(Vector3.zero)
+		local normal = mesh:AddNormal(Vector3.zAxis)
+		table.insert(vertices, id)
+		normals[id] = normal
+		return id
+	end
+	local center = vertex()
+	local grid = {}
+	for ring = 1, rings do
+		grid[ring] = {}
+		for segment = 1, segments do grid[ring][segment] = vertex() end
+	end
+	local backCenter = vertex()
+	local back = {}
+	for segment = 1, segments do back[segment] = vertex() end
+	local function face(a, b, c)
+		local id = mesh:AddTriangle(a, b, c)
+		mesh:SetFaceNormals(id, { normals[a], normals[b], normals[c] })
+	end
+	for segment = 1, segments do
+		local nextSegment = segment % segments + 1
+		face(center, grid[1][segment], grid[1][nextSegment])
+		for ring = 2, rings do
+			local a, b = grid[ring - 1][segment], grid[ring - 1][nextSegment]
+			local c, d = grid[ring][segment], grid[ring][nextSegment]
+			face(a, c, d)
+			face(a, d, b)
+		end
+		face(backCenter, back[nextSegment], back[segment])
+		face(grid[rings][segment], back[segment], back[nextSegment])
+		face(grid[rings][segment], back[nextSegment], grid[rings][nextSegment])
+	end
+	local function update(width, height, radius, thickness)
+		local rx = math.clamp(radius / width, 0.001, 0.499)
+		local ry = math.clamp(radius / height, 0.001, 0.499)
+		mesh:SetPosition(center, Vector3.new(0, 0, 0.5))
+		mesh:SetNormal(normals[center], Vector3.zAxis)
+		mesh:SetPosition(backCenter, Vector3.new(0, 0, -0.5))
+		mesh:SetNormal(normals[backCenter], -Vector3.zAxis)
+		for segment = 1, segments do
+			local quadrant = math.floor((segment - 1) / 12)
+			local angle = (quadrant + ((segment - 1) % 12) / 12) * math.pi / 2
+			local sx = quadrant == 0 or quadrant == 3
+			local sy = quadrant <= 1
+			local x = (sx and 1 or -1) * (0.5 - rx) + math.cos(angle) * rx
+			local y = (sy and 1 or -1) * (0.5 - ry) + math.sin(angle) * ry
+			for ring = 1, rings do
+				local t = ring / rings
+				local id = grid[ring][segment]
+				mesh:SetPosition(id, Vector3.new(x * t, y * t, 0.5 - 0.9 * t * t))
+				local nx = 1.8 * t * (x / math.max(x * x + y * y, 0.001))
+				local ny = 1.8 * t * (y / math.max(x * x + y * y, 0.001))
+				mesh:SetNormal(normals[id], Vector3.new(nx * thickness / 0.045, ny * thickness / 0.045, 1).Unit)
+			end
+			mesh:SetPosition(back[segment], Vector3.new(x, y, -0.5))
+			mesh:SetNormal(normals[back[segment]], -Vector3.zAxis)
+		end
+	end
+	update(800, 520, 22, 0.045)
+	local ok, part = pcall(function()
+		return assetService:CreateMeshPartAsync(Content.fromObject(mesh))
+	end)
+	if not ok then mesh:Destroy(); error(part) end
+	part.Name = "CurvedLens"
+	part.DoubleSided = true
+	return { Part = part, Mesh = mesh, Update = update }
+end
+
 local function createNotificationGlass(gui, scale, options)
 	options = options or {}
 	local templates
@@ -150,6 +228,7 @@ local function createNotificationGlass(gui, scale, options)
 		if not item then return end
 		for _, listener in ipairs(item.connections) do listener:Disconnect() end
 		item.model:Destroy()
+		if item.lens then item.lens.Mesh:Destroy() end
 		items[card] = nil
 		if not next(items) and connection then connection:Disconnect(); connection = nil end
 	end
@@ -191,6 +270,19 @@ local function createNotificationGlass(gui, scale, options)
 			local world = project(center.X, center.Y)
 			local width = (project(center.X + size.X / 2, center.Y) - project(center.X - size.X / 2, center.Y)).Magnitude
 			local height = (project(center.X, center.Y + size.Y / 2) - project(center.X, center.Y - size.Y / 2)).Magnitude
+
+			if item.lens then
+				local thickness = options.GetThickness and options.GetThickness() or 0.045
+				if item.lensSize ~= size or item.lensRadius ~= radius or item.lensThickness ~= thickness then
+					item.lens.Update(size.X, size.Y, radius, thickness)
+					item.lensSize, item.lensRadius, item.lensThickness = size, radius, thickness
+				end
+				local part = item.lens.Part
+				part.Size = Vector3.new(width, height, thickness)
+				part.CFrame = CFrame.new(world + cam.ZVector * thickness * 0.4) * cam.Rotation
+				part.Color = Color3.fromRGB(220, 228, 240)
+				part.Transparency = 0.86 + 0.14 * transparency
+			else
 			for index, spec in ipairs(item.layout) do
 				local part = item.parts[index]
 				local w, h = math.max(0.001, spec[4] * width), math.max(0.001, spec[5] * height)
@@ -200,6 +292,7 @@ local function createNotificationGlass(gui, scale, options)
 				part.Color = currentMode == "Light" and Color3.fromRGB(226, 232, 240) or Color3.fromRGB(85, 92, 108)
 				local base = options.Transparency or 0.94
 				part.Transparency = base + (1 - base) * transparency
+			end
 			end
 			local fill = options.HighlightTransparency or 0.97
 			item.highlight.FillTransparency = fill + (1 - fill) * transparency
@@ -236,6 +329,27 @@ local function createNotificationGlass(gui, scale, options)
 				part.Reflectance = 0
 				part.Parent = model
 				table.insert(item.parts, part)
+			end
+
+			if options.Curved then
+				local success, lens = pcall(createCurvedGlass)
+				if success then
+					for _, part in ipairs(item.parts) do part:Destroy() end
+					table.clear(item.parts)
+					item.lens = lens
+					local part = lens.Part
+					part.Anchored = true
+					part.CanCollide = false
+					part.CanTouch = false
+					part.CanQuery = false
+					part.CastShadow = false
+					part.Material = Enum.Material.Glass
+					part.Transparency = 1
+					part.Reflectance = 0
+					part.Parent = model
+				else
+					warn("StacOnf: curved glass unavailable; retaining mesh glass. " .. tostring(lens))
+				end
 			end
 			local highlight = Instance.new("Highlight")
 			highlight.FillColor = Color3.new(0, 0, 0)
@@ -1231,6 +1345,7 @@ local function installSidebarChrome(targetGui)
 	corner.Parent = surface
 	local windowGlass = createNotificationGlass(targetGui, { Scale = 1 }, {
 		Name = "StacOnfWindowGlass",
+		Curved = true,
 		Transparency = 0.86,
 		GetThickness = windowGlassThickness,
 		HighlightTransparency = 0.99,
