@@ -1093,7 +1093,7 @@ local function applyModernVisuals(targetGui)
 					corner.Parent = badge
 					sym.Parent = badge
 				end
-				local fullIcon = titleObj.Text == "Appearance" or titleObj.Text == "Config"
+				local fullIcon = titleObj.Text == "Appearance" or titleObj.Text == "Settings"
 				badge.BackgroundColor3 = colors[titleObj.Text] or colors.Telemetry
 				badge.BackgroundTransparency = fullIcon and 1 or 0
 				sym.Size = fullIcon and UDim2.fromScale(1, 1) or UDim2.fromOffset(14, 14)
@@ -1242,6 +1242,63 @@ task.defer(function()
 	end
 end)
 
+
+local settingRegistry = {}
+local settingOrder = {}
+local function settingControl(id, parent, kind, options)
+	local default = options.Value
+	local control = kind == "PopUpButton" and crispPopUpButton(parent, options) or parent[kind](parent, options)
+	settingRegistry[id] = { control = control, kind = kind, default = default, minimum = options.Minimum, maximum = options.Maximum, options = options.Options }
+	table.insert(settingOrder, id)
+	return control
+end
+
+local function captureSettings(defaults)
+	local values = {}
+	for _, id in ipairs(settingOrder) do
+		local entry = settingRegistry[id]
+		local value = entry.control.Value
+		if defaults then value = entry.default end
+		values[id] = entry.kind == "KeybindField" and value.Name or value
+	end
+	return values
+end
+
+local function validateSettings(values)
+	assert(type(values) == "table", "Invalid settings data")
+	local validated = {}
+	for _, id in ipairs(settingOrder) do
+		local entry = settingRegistry[id]
+		local value = values[id]
+		if value ~= nil then
+			if entry.kind == "Toggle" then
+				assert(type(value) == "boolean", "Invalid toggle: " .. id)
+			elseif entry.kind == "KeybindField" then
+				assert(type(value) == "string", "Invalid key: " .. id)
+				local ok, key = pcall(function() return Enum.KeyCode[value] end)
+				assert(ok and key and key ~= Enum.KeyCode.Unknown, "Unknown key: " .. id)
+				value = key
+			else
+				assert(type(value) == "number" and value == value and math.abs(value) < math.huge, "Invalid number: " .. id)
+				if entry.kind == "PopUpButton" then
+					assert(value % 1 == 0 and value >= 1 and value <= #entry.options, "Invalid option: " .. id)
+				else
+					value = math.clamp(value, entry.minimum, entry.maximum)
+				end
+			end
+			validated[id] = value
+		end
+	end
+	return validated
+end
+
+local function applySettings(values)
+	local validated = validateSettings(values)
+	for _, id in ipairs(settingOrder) do
+		if validated[id] ~= nil then settingRegistry[id].control.Value = validated[id] end
+	end
+end
+
 do
 	local overviewTab = window:Tab({
 		Title = "Telemetry",
@@ -1262,7 +1319,7 @@ do
 		local fovLabel = row:Right():Label({
 			Text = tostring(math.floor(currentFov)) .. "°",
 		})
-		row:Right():Slider({
+		settingControl("fieldOfView", row:Right(), "Slider", {
 			Minimum = 60,
 			Maximum = 120,
 			Value = currentFov,
@@ -1278,7 +1335,7 @@ do
 
 	do
 		local row = titledRow(perfForm, "Low Latency Rendering", "Bypass redundant post-process sampling")
-		row:Right():Toggle({
+		settingControl("lowLatency", row:Right(), "Toggle", {
 			Value = true,
 			ValueChanged = function(self, value)
 				app:Notification({
@@ -1364,7 +1421,7 @@ do
 		local timeLabel = row:Right():Label({
 			Text = ("%.1f h"):format(lighting.ClockTime),
 		})
-		row:Right():Slider({
+		settingControl("clockTime", row:Right(), "Slider", {
 			Minimum = 0,
 			Maximum = 24,
 			Value = lighting.ClockTime,
@@ -1377,7 +1434,7 @@ do
 
 	do
 		local row = titledRow(envForm, "Global Shadows", "Toggle sunlight occlusion shadows")
-		row:Right():Toggle({
+		settingControl("globalShadows", row:Right(), "Toggle", {
 			Value = lighting.GlobalShadows,
 			ValueChanged = function(self, value)
 				lighting.GlobalShadows = value
@@ -1387,7 +1444,7 @@ do
 
 	do
 		local row = titledRow(envForm, "Atmosphere Preset", "Quick switch ambient grading")
-		crispPopUpButton(row:Right(), {
+		settingControl("atmosphere", row:Right(), "PopUpButton", {
 			Options = { "Default", "Neon Dusk", "Midnight Void", "Golden Hour" },
 			Value = 1,
 			ValueChanged = function(self, index)
@@ -1441,7 +1498,7 @@ do
 		local speedLabel = row:Right():Label({
 			Text = tostring(math.floor(curSpeed)),
 		})
-		row:Right():Slider({
+		settingControl("walkSpeed", row:Right(), "Slider", {
 			Minimum = 16,
 			Maximum = 120,
 			Value = curSpeed,
@@ -1463,7 +1520,7 @@ do
 		local jumpLabel = row:Right():Label({
 			Text = tostring(math.floor(curJump)),
 		})
-		row:Right():Slider({
+		settingControl("jumpPower", row:Right(), "Slider", {
 			Minimum = 50,
 			Maximum = 200,
 			Value = curJump,
@@ -1487,8 +1544,8 @@ do
 			Pushed = function()
 				local targetHum = getHumanoid()
 				if targetHum then
-					targetHum.WalkSpeed = 16
-					targetHum.JumpPower = 50
+					settingRegistry.walkSpeed.control.Value = 16
+					settingRegistry.jumpPower.control.Value = 50
 					app:Notification({
 						App = "StacOnf",
 						Title = "Locomotion Reset",
@@ -1516,7 +1573,7 @@ do
 
 	do
 		local row = titledRow(modeForm, "Interface Mode", "Select system lighting scheme")
-		crispPopUpButton(row:Right(), {
+		settingControl("mode", row:Right(), "PopUpButton", {
 			Options = { "Dark", "Light" },
 			Value = (currentMode == "Dark" and 1 or 2),
 			ValueChanged = function(self, index)
@@ -1537,7 +1594,7 @@ do
 
 	do
 		local row = titledRow(themeForm, "Colour", "Tint color applied to active controls and tabs")
-		crispPopUpButton(row:Right(), {
+		settingControl("accent", row:Right(), "PopUpButton", {
 			Options = accentList,
 			Value = 1,
 			ValueChanged = function(self, index)
@@ -1549,7 +1606,7 @@ do
 
 	do
 		local row = titledRow(themeForm, "Text Highlight Colour", "Accent tint for selected text elements")
-		crispPopUpButton(row:Right(), {
+		settingControl("textHighlight", row:Right(), "PopUpButton", {
 			Options = { "Automatic", "Blue", "Purple", "Pink", "Red", "Orange", "Yellow", "Green", "Graphite" },
 			Value = 1,
 		})
@@ -1557,7 +1614,7 @@ do
 
 	do
 		local row = titledRow(themeForm, "Icon and Widget Style", "Visual presentation of interface elements")
-		crispPopUpButton(row:Right(), {
+		settingControl("iconStyle", row:Right(), "PopUpButton", {
 			Options = { "Default", "Dark", "Clear", "Tinted" },
 			Value = 1,
 		})
@@ -1565,7 +1622,7 @@ do
 
 	do
 		local row = titledRow(themeForm, "Folder Colour", "Directory and group container tint")
-		crispPopUpButton(row:Right(), {
+		settingControl("folderColour", row:Right(), "PopUpButton", {
 			Options = { "Automatic", "Blue", "Purple", "Pink", "Graphite" },
 			Value = 1,
 		})
@@ -1580,7 +1637,7 @@ do
 
 	do
 		local row = titledRow(fxForm, "Acrylic Blur", "Sample real-time world glass refraction through sidebar")
-		row:Right():Toggle({
+		settingControl("blur", row:Right(), "Toggle", {
 			Value = true,
 			ValueChanged = function(self, value)
 				if acrylicBlur then
@@ -1592,7 +1649,7 @@ do
 
 	do
 		local row = titledRow(fxForm, "Window Dropshadow", "Toggle depth shadow around window frame")
-		row:Right():Toggle({
+		settingControl("shadow", row:Right(), "Toggle", {
 			Value = window.Dropshadow,
 			ValueChanged = function(self, value)
 				window.Dropshadow = value
@@ -1602,7 +1659,7 @@ do
 
 	do
 		local row = titledRow(fxForm, "Minimize Hotkey", "Keycode to toggle window visibility")
-		row:Right():KeybindField({
+		settingControl("hotkey", row:Right(), "KeybindField", {
 			Value = minimizeKey,
 			ValueChanged = function(self, value)
 				minimizeKey = value
@@ -1628,14 +1685,209 @@ do
 	end
 end
 
+
 do
-	local configTab = window:Tab({
-		Title = "Config",
+	local settingsTab = window:Tab({
+		Title = "Settings",
 		Icon = getAsset("config.png", "https://raw.githubusercontent.com/x8lua/Staconf/main/assets/config.png"),
 	})
-	configTab:PageSection({
-		Title = "Config",
+	local form = settingsTab:PageSection({
+		Title = "Configuration",
+		Subtitle = "Save your setup. Switch profiles whenever you need.",
+	}):Form()
+	local path = "Staconf/settings-v1.json"
+	local http = game:GetService("HttpService")
+	local database: any = { version = 1, profiles = {}, autoload = "" }
+	local available = typeof(readfile) == "function" and typeof(writefile) == "function" and typeof(isfile) == "function"
+	local healthy = true
+	local names = {}
+	local selected = ""
+	local picker
+	local startup
+	local status
+	local refreshing = false
+	local pending = ""
+	local deadline = 0
+	local function report(message)
+		if status then status.Text = message end
+	end
+	local function validName(name)
+		name = name:match("^%s*(.-)%s*$")
+		assert(#name >= 1 and #name <= 32, "Use 1-32 characters.")
+		assert(name:match("^[%w _%-]+$"), "Use letters, numbers, spaces, - or _.")
+		return name
+	end
+	local function readDatabase()
+		if not available then return end
+		if not isfile(path) then
+			database = { version = 1, profiles = {}, autoload = "" }
+			return
+		end
+		local raw = readfile(path)
+		assert(#raw <= 1048576, "Settings file is too large.")
+		local decoded = http:JSONDecode(raw)
+		assert(type(decoded) == "table" and decoded.version == 1 and type(decoded.profiles) == "table", "Unsupported settings file.")
+		assert(type(decoded.autoload) == "string", "Invalid startup profile.")
+		local count = 0
+		for name, profile in pairs(decoded.profiles) do
+			assert(type(name) == "string" and validName(name) == name, "Invalid profile name.")
+			assert(type(profile) == "table", "Invalid profile.")
+			validateSettings(profile.values)
+			count += 1
+			assert(count <= 100, "Too many profiles.")
+		end
+		assert(decoded.autoload == "" or decoded.profiles[decoded.autoload], "Startup profile is missing.")
+		database = decoded
+	end
+	local function persist(nextDatabase)
+		assert(available, "File storage unavailable in this environment.")
+		assert(healthy, "Repair the settings file, then Refresh.")
+		if typeof(makefolder) == "function" then
+			if typeof(isfolder) ~= "function" or not isfolder("Staconf") then pcall(makefolder, "Staconf") end
+		end
+		local encoded = http:JSONEncode(nextDatabase)
+		if isfile(path) then writefile(path .. ".bak", readfile(path)) end
+		writefile(path, encoded)
+		assert(readfile(path) == encoded, "Storage verification failed.")
+		database = nextDatabase
+	end
+	local function candidate()
+		return { version = 1, profiles = table.clone(database.profiles), autoload = database.autoload }
+	end
+	local function guarded(action)
+		local ok, message = pcall(action)
+		if not ok then report((tostring(message):gsub("^.-:%d+: ", ""))) end
+	end
+	local function refresh(preferred)
+		refreshing = true
+		table.clear(names)
+		for name in pairs(database.profiles) do table.insert(names, name) end
+		table.sort(names)
+		selected = table.find(names, preferred) and preferred or names[1] or ""
+		picker.Options = #names > 0 and table.clone(names) or { "No saved profiles" }
+		picker.Value = table.find(names, selected) or 1
+		startup.Value = selected ~= "" and database.autoload == selected
+		refreshing = false
+	end
+	local function confirm(action)
+		if pending == action and os.clock() < deadline then
+			pending = ""
+			return true
+		end
+		pending = action
+		deadline = os.clock() + 4
+		report("Click again within 4 seconds to " .. action .. ".")
+		return false
+	end
+	local nameField = titledRow(form, "Profile name"):Right():TextField({ Value = "", Placeholder = "My setup" })
+	nameField.Structures.Field.Size = UDim2.fromOffset(150, 24)
+	picker = crispPopUpButton(titledRow(form, "Saved profiles"):Right(), {
+		Options = { "No saved profiles" },
+		Value = 1,
+		ValueChanged = function(self, index)
+			if refreshing or not startup then return end
+			selected = self.Options[index] or ""
+			if not database.profiles[selected] then selected = "" end
+			startup.Value = selected ~= "" and database.autoload == selected
+		end,
 	})
+	titledRow(form, "Save current settings"):Right():Button({
+		Label = "Save", State = "Primary",
+		Pushed = function()
+			guarded(function()
+				local name = validName(nameField.Structures.Field.Text)
+				if database.profiles[name] and not confirm("overwrite " .. name) then return end
+				assert(database.profiles[name] or #names < 100, "Maximum 100 profiles.")
+				local nextDatabase = candidate()
+				nextDatabase.profiles[name] = { values = captureSettings(), savedAt = os.time() }
+				persist(nextDatabase)
+				refresh(name)
+				report("Saved " .. name .. ".")
+			end)
+		end,
+	})
+	titledRow(form, "Apply selected profile"):Right():Button({
+		Label = "Load", State = "Secondary",
+		Pushed = function()
+			guarded(function()
+				assert(database.profiles[selected], "Select a saved profile first.")
+				applySettings(database.profiles[selected].values)
+				report("Loaded " .. selected .. ".")
+			end)
+		end,
+	})
+	startup = titledRow(form, "Load on startup", "Automatically apply the selected profile."):Right():Toggle({
+		Value = false,
+		ValueChanged = function(self, enabled)
+			if refreshing then return end
+			local expected = selected ~= "" and database.autoload == selected
+			if enabled == expected then return end
+			guarded(function()
+				assert(selected ~= "", "Save a profile first.")
+				local nextDatabase = candidate()
+				nextDatabase.autoload = enabled and selected or ""
+				persist(nextDatabase)
+				report(enabled and ("Startup profile: " .. selected) or "Automatic loading disabled.")
+			end)
+			local actual = selected ~= "" and database.autoload == selected
+			if self.Value ~= actual then self.Value = actual end
+		end,
+	})
+	local management = settingsTab:PageSection({ Title = "Manage profiles" }):Form()
+	titledRow(management, "Refresh from disk"):Right():Button({
+		Label = "Refresh", State = "Secondary",
+		Pushed = function()
+			guarded(function()
+				assert(available, "File storage unavailable in this environment.")
+				healthy = false
+				readDatabase()
+				healthy = true
+				refresh(selected)
+				report("Profile list refreshed.")
+			end)
+		end,
+	})
+	titledRow(management, "Delete selected profile"):Right():Button({
+		Label = "Delete", State = "Destructive",
+		Pushed = function()
+			guarded(function()
+				assert(database.profiles[selected], "Select a saved profile first.")
+				if not confirm("delete " .. selected) then return end
+				local deleted = selected
+				local nextDatabase = candidate()
+				nextDatabase.profiles[deleted] = nil
+				if nextDatabase.autoload == deleted then nextDatabase.autoload = "" end
+				persist(nextDatabase)
+				refresh("")
+				report("Deleted " .. deleted .. ".")
+			end)
+		end,
+	})
+	titledRow(management, "Restore session defaults", "Saved profiles are kept."):Right():Button({
+		Label = "Reset", State = "Secondary",
+		Pushed = function()
+			guarded(function()
+				if not confirm("reset settings") then return end
+				applySettings(captureSettings(true))
+				report("Session defaults restored.")
+			end)
+		end,
+	})
+	status = management:Row({ SearchIndex = "Storage status" }):Left():Label({ Text = "Profiles are stored locally on this device." })
+	local ok, message = pcall(readDatabase)
+	healthy = ok
+	refresh(database.autoload)
+	if not ok then
+		report("Could not read profiles. Repair the file, then Refresh.")
+		warn("StacOnf settings: " .. tostring(message))
+	elseif not available then
+		report("File storage unavailable. Profiles cannot be saved.")
+	elseif database.autoload ~= "" then
+		guarded(function()
+			applySettings(database.profiles[database.autoload].values)
+			report("Loaded startup profile: " .. database.autoload .. ".")
+		end)
+	end
 end
 
 do

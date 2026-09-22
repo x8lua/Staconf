@@ -1,5 +1,15 @@
 # Staconf
 
+## Settings profiles
+
+The Settings tab supports named local profiles, Save, Load, Refresh, Delete, startup loading, and restoring session defaults. Overwrite, Delete, and Reset require a second click within four seconds. Profile names accept 1–32 ASCII letters, numbers, spaces, hyphens, or underscores.
+
+Profiles store the 15 main-page controls, including appearance, hotkey, camera, lighting, and movement values. Loading applies the existing control callbacks. Pointer modal demo controls and account information are not included. Reset restores values captured when this script started; saved profiles are retained.
+
+Storage uses the executor workspace file `Staconf/settings-v1.json`, with the previous file copied to `Staconf/settings-v1.json.bak` before writes. Requires `readfile`, `writefile`, and `isfile`; folder creation is used when available. Corrupt or unsupported data blocks writes until repaired and refreshed. There is no cloud sync or background autosave.
+
+Validation: 15 isolated Luau tests passed using mock controls and in-memory files, including startup loading and corrupt-file protection. Actual filesystem persistence and Settings layout have not been visually verified. The existing `collectgarbage("collect")` analyzer diagnostic is unrelated to this addition.
+
 Next-Generation Roblox Luau In-Game Console & UI Suite.
 
 Built with an innovative design paradigm: high-contrast **Electric Blue (`#3B82F6`)** accent, decoupled 125% content scaling, embedded auto-revealing Dock with native vector icons, and macOS Sequoia styling.
