@@ -66,35 +66,63 @@ local window = app:Window({
 	UIBlur = true,
 })
 
+local acrylicBlur = lighting:FindFirstChild("CascadeAcrylicBlur")
+if not acrylicBlur then
+	acrylicBlur = Instance.new("BlurEffect")
+	acrylicBlur.Name = "CascadeAcrylicBlur"
+	acrylicBlur.Size = 14
+	acrylicBlur.Parent = lighting
+end
+
+window.Destroying:Connect(function()
+	if acrylicBlur and acrylicBlur.Parent then
+		acrylicBlur:Destroy()
+	end
+end)
+
 local minimizeKey = Enum.KeyCode.RightControl
 userInputService.InputEnded:Connect(function(input, processed)
 	if input.KeyCode == minimizeKey and not processed then
 		window.Minimized = not window.Minimized
+		if acrylicBlur then
+			acrylicBlur.Enabled = not window.Minimized
+		end
 	end
 end)
 
-local function applyModernCorners(targetGui)
-	local function updateCorner(c)
-		if c:IsA("UICorner") and c.CornerRadius.Scale == 0 then
-			local off = c.CornerRadius.Offset
+local function applyModernVisuals(targetGui)
+	local function updateVisual(obj)
+		if obj:IsA("UICorner") and obj.CornerRadius.Scale == 0 then
+			local off = obj.CornerRadius.Offset
 			if off == 10 then
-				c.CornerRadius = UDim.new(0, 22)
+				obj.CornerRadius = UDim.new(0, 22)
 			elseif off == 6 then
-				c.CornerRadius = UDim.new(0, 14)
+				obj.CornerRadius = UDim.new(0, 14)
 			elseif off == 5 or off == 4 then
-				c.CornerRadius = UDim.new(0, 10)
+				obj.CornerRadius = UDim.new(0, 10)
 			end
+		elseif obj.Name == "Disclosure" then
+			obj.Visible = false
+		elseif obj.Name == "Body" and obj:IsA("Frame") then
+			obj.BackgroundTransparency = 0.32
+			obj.BackgroundColor3 = Color3.fromRGB(16, 18, 25)
+		elseif obj.Name == "Sidebar" and obj:IsA("Frame") then
+			obj.BackgroundTransparency = 0.45
+			obj.BackgroundColor3 = Color3.fromRGB(24, 27, 38)
+		elseif obj.Name == "Toolbar" and obj:IsA("Frame") then
+			obj.BackgroundTransparency = 0.65
+		elseif obj.Name == "ContentBody" and obj:IsA("Frame") then
+			obj.BackgroundTransparency = 0.28
+			obj.BackgroundColor3 = Color3.fromRGB(14, 16, 22)
 		end
 	end
 
 	for _, descendant in ipairs(targetGui:GetDescendants()) do
-		updateCorner(descendant)
+		updateVisual(descendant)
 	end
 
 	targetGui.DescendantAdded:Connect(function(descendant)
-		if descendant:IsA("UICorner") then
-			task.defer(updateCorner, descendant)
-		end
+		task.defer(updateVisual, descendant)
 	end)
 end
 
@@ -114,7 +142,7 @@ task.defer(function()
 	for _, t in ipairs(targets) do
 		local c = t:FindFirstChild("Cascade")
 		if c then
-			applyModernCorners(c)
+			applyModernVisuals(c)
 			break
 		end
 	end
@@ -123,7 +151,7 @@ end)
 do
 	local runtimeSection = window:Section({
 		Title = "RUNTIME MATRIX",
-		Disclosure = true,
+		Disclosure = false,
 	})
 
 	local overviewTab = runtimeSection:Tab({
@@ -221,7 +249,7 @@ end
 do
 	local worldSection = window:Section({
 		Title = "ENVIRONMENT",
-		Disclosure = true,
+		Disclosure = false,
 	})
 
 	local lightingTab = worldSection:Tab({
@@ -296,7 +324,7 @@ end
 do
 	local playerSection = window:Section({
 		Title = "PLAYER DYNAMICS",
-		Disclosure = true,
+		Disclosure = false,
 	})
 
 	local moveTab = playerSection:Tab({
@@ -386,7 +414,7 @@ end
 do
 	local prefSection = window:Section({
 		Title = "PREFERENCES",
-		Disclosure = true,
+		Disclosure = false,
 	})
 
 	local styleTab = prefSection:Tab({
