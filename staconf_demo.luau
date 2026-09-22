@@ -100,6 +100,9 @@ local window = app:Window({
 })
 
 
+local currentMode = "Dark"
+local currentAccent = "Blue"
+
 local function createNotificationCenter(owner, parent)
 	local gui = Instance.new("ScreenGui")
 	gui.Name = "StacOnfNotifications"
@@ -116,6 +119,9 @@ local function createNotificationCenter(owner, parent)
 	host.Position = UDim2.new(1, -16, 0, 14)
 	host.Size = UDim2.new(1, -32, 1, -28)
 	host.Parent = gui
+	local displayScale = Instance.new("UIScale")
+	displayScale.Scale = 0.5
+	displayScale.Parent = host
 	local limit = Instance.new("UISizeConstraint")
 	limit.MaxSize = Vector2.new(414, 10000)
 	limit.Parent = host
@@ -124,6 +130,28 @@ local function createNotificationCenter(owner, parent)
 	local connections = {}
 	local tweens = {}
 	local timers = {}
+	local function style(entry)
+		local light = currentMode == "Light"
+		entry.card.BackgroundColor3 = light and Color3.fromRGB(242, 243, 247) or Color3.fromRGB(34, 37, 47)
+		entry.card.BackgroundTransparency = 0
+		local primary = light and Color3.fromRGB(37, 40, 48) or Color3.fromRGB(244, 245, 249)
+		local secondary = light and Color3.fromRGB(108, 113, 125) or Color3.fromRGB(169, 174, 189)
+		for _, child in ipairs(entry.card:GetChildren()) do
+			if child:IsA("TextLabel") then
+				child.TextColor3 = child.Name == "Message" and secondary or primary
+			end
+		end
+		local iconFrame = entry.card:FindFirstChild("AppIcon")
+		if iconFrame then
+			iconFrame.BackgroundColor3 = light and Color3.fromRGB(226, 228, 235) or Color3.fromRGB(24, 26, 34)
+			local icon = iconFrame:FindFirstChildOfClass("ImageLabel")
+			if icon then icon.ImageColor3 = app.Theme.Controls.Selection[1].Value end
+		end
+	end
+	local function refreshTheme()
+		if not alive then return end
+		for _, entry in ipairs(entries) do style(entry) end
+	end
 	local function connect(signal, callback)
 		local connection = signal:Connect(callback)
 		table.insert(connections, connection)
@@ -160,7 +188,7 @@ local function createNotificationCenter(owner, parent)
 		tween:Play()
 	end
 	local function measure(entry)
-		local width = math.max(120, host.AbsoluteSize.X - 86)
+		local width = math.max(120, host.AbsoluteSize.X / displayScale.Scale - 86)
 		local ok, bounds = pcall(function()
 			local params = Instance.new("GetTextBoundsParams")
 			params.Text = entry.body.Text
@@ -230,7 +258,7 @@ local function createNotificationCenter(owner, parent)
 	local function notify(options)
 		if not alive then return end
 		options = options or {}
-		local capacity = math.clamp(math.floor(host.AbsoluteSize.Y / 178), 1, 3)
+		local capacity = math.clamp(math.floor(host.AbsoluteSize.Y / (178 * displayScale.Scale)), 1, 3)
 		while #entries >= capacity do dismiss(entries[1], true) end
 		local card = Instance.new("CanvasGroup")
 		card.Name = "Notification"
@@ -274,6 +302,7 @@ local function createNotificationCenter(owner, parent)
 		hit.AutoButtonColor = false
 		hit.Parent = card
 		local entry = { card = card, body = body, height = 104, removed = false }
+		style(entry)
 		table.insert(entries, 1, entry)
 		hit.Activated:Connect(function() dismiss(entry, false) end)
 		measure(entry)
@@ -306,10 +335,10 @@ local function createNotificationCenter(owner, parent)
 	end
 	connect(gui.Destroying, cleanup)
 	connect(owner.Destroying, function() cleanup(); gui:Destroy() end)
-	return notify
+	return notify, refreshTheme
 end
 
-local notify = createNotificationCenter(app.__instance, app.__instance.Parent)
+local notify, refreshNotificationTheme = createNotificationCenter(app.__instance, app.__instance.Parent)
 window.Destroying:Connect(function()
 	local parent = app.__instance.Parent
 	local gui = parent and parent:FindFirstChild("StacOnfNotifications")
@@ -340,8 +369,6 @@ userInputService.InputEnded:Connect(function(input, processed)
 	end
 end)
 
-local currentMode = "Dark"
-local currentAccent = "Blue"
 local currentStacOnfGui = nil
 
 local modeColors = {
@@ -1437,6 +1464,7 @@ local function smoothTransition(newMode, newAccentName)
 		app.Accent = cascade.Accents[newAccentName]
 	end
 
+	refreshNotificationTheme()
 	if refreshSidebarChrome then refreshSidebarChrome() end
 	if refreshMiddlePanel then refreshMiddlePanel() end
 	if refreshAccountPage then refreshAccountPage() end
