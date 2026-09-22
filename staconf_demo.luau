@@ -104,7 +104,8 @@ local currentMode = "Dark"
 local currentAccent = "Blue"
 
 
-local function createNotificationGlass(gui, scale)
+local function createNotificationGlass(gui, scale, options)
+	options = options or {}
 	local templates
 	local roots = {}
 	local ok = pcall(function()
@@ -117,7 +118,7 @@ local function createNotificationGlass(gui, scale)
 	end)
 	for _, root in ipairs(roots) do root:Destroy() end
 	if not ok or not templates then
-		warn("StacOnf: liquid glass unavailable; using themed notification surface.")
+		warn("StacOnf: liquid glass unavailable; using themed surface.")
 		return { Add = function() return false end, Destroy = function() end }
 	end
 	local items = {}
@@ -125,12 +126,24 @@ local function createNotificationGlass(gui, scale)
 	local destroyed = false
 	local runService = game:GetService("RunService")
 	local folder = Instance.new("Folder")
-	folder.Name = "StacOnfNotificationGlass"
+	folder.Name = options.Name or "StacOnfNotificationGlass"
 	folder.Parent = workspaceService
+	local syncBinding
+	local function visibility(card)
+		local opacity = 1
+		local ancestor = card
+		while ancestor do
+			if ancestor:IsA("GuiObject") and not ancestor.Visible then return false, 1 end
+			if ancestor:IsA("ScreenGui") and not ancestor.Enabled then return false, 1 end
+			if ancestor:IsA("CanvasGroup") then opacity *= 1 - ancestor.GroupTransparency end
+			ancestor = ancestor.Parent
+		end
+		return card:IsDescendantOf(gui) and opacity > 0.001, 1 - opacity
+	end
 	local function remove(card)
 		local item = items[card]
 		if not item then return end
-		item.connection:Disconnect()
+		for _, listener in ipairs(item.connections) do listener:Disconnect() end
 		item.model:Destroy()
 		items[card] = nil
 		if not next(items) and connection then connection:Disconnect(); connection = nil end
@@ -139,17 +152,21 @@ local function createNotificationGlass(gui, scale)
 		local camera = workspaceService.CurrentCamera
 		if not camera then return end
 		local cam = camera:GetRenderCFrame()
-		local inset = game:GetService("GuiService"):GetGuiInset()
+		local inset = gui.IgnoreGuiInset and Vector2.zero or game:GetService("GuiService"):GetGuiInset()
 		for card, item in pairs(items) do
 			local size = card.AbsoluteSize
 			local pos = card.AbsolutePosition + inset
-			local visible = gui.Enabled and card.Visible and card.GroupTransparency < 0.999 and size.X > 1 and size.Y > 1
+			local visible, transparency = visibility(card)
+			visible = visible and size.X > 1 and size.Y > 1
 			item.model.Parent = visible and folder or nil
 			if not visible then continue end
-			local radius = math.min(23 * scale.Scale, size.Y / 2, size.X / 2)
+			local corner = card:FindFirstChildOfClass("UICorner")
+			local radius = corner and (corner.CornerRadius.Offset * scale.Scale + corner.CornerRadius.Scale * math.min(size.X, size.Y)) or 0
+			radius = math.min(radius, size.Y / 2, size.X / 2)
 			local rx, ry = radius / size.X, radius / size.Y
-			if item.lastSize ~= size then
+			if item.lastSize ~= size or item.lastRadius ~= radius then
 			item.lastSize = size
+			item.lastRadius = radius
 			item.layout = {
 				{"Center", 0, 0, 1 - 2 * rx, 1 - 2 * ry, 0, false},
 				{"Edge", 0, -0.5 + ry / 2, 1 - 2 * rx, ry, 0, false},
@@ -164,7 +181,7 @@ local function createNotificationGlass(gui, scale)
 			end
 			local function project(x, y)
 				local ray = camera:ViewportPointToRay(x, y)
-				return ray.Origin + ray.Direction * (0.6 / ray.Direction:Dot(cam.LookVector))
+				return ray.Origin + ray.Direction * ((options.Depth or 0.6) / ray.Direction:Dot(cam.LookVector))
 			end
 			local center = pos + size / 2
 			local world = project(center.X, center.Y)
@@ -176,10 +193,23 @@ local function createNotificationGlass(gui, scale)
 				part.Size = spec[7] and Vector3.new(0.01, w, h) or Vector3.new(0.01, h, w)
 				part.CFrame = CFrame.new(world + cam.RightVector * spec[2] * width - cam.UpVector * spec[3] * height) * cam.Rotation * CFrame.Angles(0, 0, math.rad(spec[6])) * CFrame.Angles(0, -math.pi / 2, 0)
 				part.Color = currentMode == "Light" and Color3.fromRGB(226, 232, 240) or Color3.fromRGB(85, 92, 108)
-				part.Transparency = 0.94 + 0.06 * card.GroupTransparency
+				local base = options.Transparency or 0.94
+				part.Transparency = base + (1 - base) * transparency
 			end
-			item.highlight.FillTransparency = 0.97 + 0.03 * card.GroupTransparency
+			local fill = options.HighlightTransparency or 0.97
+			item.highlight.FillTransparency = fill + (1 - fill) * transparency
 		end
+	end
+	syncBinding = function()
+		if destroyed then return end
+		local active = false
+		for card, item in pairs(items) do
+			local visible = visibility(card)
+			item.model.Parent = visible and folder or nil
+			active = active or visible
+		end
+		if active and not connection then connection = runService.RenderStepped:Connect(render) end
+		if not active and connection then connection:Disconnect(); connection = nil end
 	end
 	return {
 		Add = function(card)
@@ -187,7 +217,7 @@ local function createNotificationGlass(gui, scale)
 			local model = Instance.new("Model")
 			model.Name = "NotificationGlass"
 			model.Parent = folder
-			local item = { model = model, parts = {} }
+			local item = { model = model, parts = {}, connections = {} }
 			for _, name in ipairs({"Center", "Edge", "Edge", "Edge", "Edge", "Corner", "Corner", "Corner", "Corner"}) do
 				local part = templates[name]:Clone()
 				part:ClearAllChildren()
@@ -208,9 +238,19 @@ local function createNotificationGlass(gui, scale)
 			highlight.FillTransparency = 0.97
 			highlight.Parent = model
 			item.highlight = highlight
-			item.connection = card.Destroying:Connect(function() remove(card) end)
+			table.insert(item.connections, card.Destroying:Connect(function() remove(card) end))
 			items[card] = item
-			if not connection then connection = runService.RenderStepped:Connect(render) end
+			local ancestor = card
+			while ancestor do
+				local property = ancestor:IsA("ScreenGui") and "Enabled" or (ancestor:IsA("GuiObject") and "Visible" or nil)
+				if property then table.insert(item.connections, ancestor:GetPropertyChangedSignal(property):Connect(syncBinding)) end
+				if ancestor:IsA("CanvasGroup") then
+					table.insert(item.connections, ancestor:GetPropertyChangedSignal("GroupTransparency"):Connect(syncBinding))
+				end
+				ancestor = ancestor.Parent
+			end
+			table.insert(item.connections, card.AncestryChanged:Connect(syncBinding))
+			syncBinding()
 			return true
 		end,
 		Destroy = function()
@@ -1184,6 +1224,15 @@ local function installSidebarChrome(targetGui)
 	local corner = Instance.new("UICorner")
 	corner.CornerRadius = UDim.new(0, 22)
 	corner.Parent = surface
+	local windowGlass = createNotificationGlass(targetGui, { Scale = 1 }, {
+		Name = "StacOnfWindowGlass",
+		Transparency = 0.985,
+		HighlightTransparency = 0.995,
+		Depth = 0.8,
+	})
+	local hasWindowGlass = windowGlass.Add(surface)
+	chromeConnect(surface.Destroying, windowGlass.Destroy)
+	chromeConnect(window.Destroying, windowGlass.Destroy)
 	local layout = body:FindFirstChildOfClass("UIListLayout")
 	if layout then layout.Parent = surface end
 	sidebar.Parent = surface
@@ -1312,9 +1361,9 @@ local function installSidebarChrome(targetGui)
 		refreshing = true
 		local light = currentMode == "Light"
 		body.BackgroundTransparency = 1
-		sidebar.BackgroundTransparency = 0
+		sidebar.BackgroundTransparency = hasWindowGlass and (light and 0.12 or 0.08) or 0
 		sidebar.BackgroundColor3 = light and Color3.fromRGB(239, 240, 244) or Color3.fromRGB(29, 31, 39)
-		content.BackgroundTransparency = 0
+		content.BackgroundTransparency = hasWindowGlass and (light and 0.08 or 0.05) or 0
 		content.BackgroundColor3 = light and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(20, 22, 29)
 		searchBody.BackgroundColor3 = light and Color3.fromRGB(226, 230, 236) or Color3.fromRGB(43, 46, 57)
 		searchBody.BackgroundTransparency = 0
