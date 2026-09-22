@@ -22,7 +22,7 @@ local function cleanupExisting()
 	end
 	for _, parent in ipairs(targets) do
 		for _, child in ipairs(parent:GetChildren()) do
-			if child.Name == "Cascade" then
+			if child.Name == "StacOnf" or child.Name == "Cascade" then
 				pcall(function()
 					child:Destroy()
 				end)
@@ -83,8 +83,10 @@ local app = cascade.New({
 	Accent = cascade.Accents.Blue,
 })
 
+app.__instance.Name = "StacOnf"
+
 local window = app:Window({
-	Title = "Cascade Deck",
+	Title = "StacOnf",
 	Subtitle = "macOS Sequoia Runtime Console",
 	Size = userInputService.TouchEnabled and UDim2.fromOffset(600, 380) or UDim2.fromOffset(800, 520),
 	Searching = true,
@@ -97,10 +99,10 @@ local window = app:Window({
 	UIBlur = true,
 })
 
-local acrylicBlur = lighting:FindFirstChild("CascadeAcrylicBlur")
+local acrylicBlur = lighting:FindFirstChild("StacOnfAcrylicBlur")
 if not acrylicBlur then
 	acrylicBlur = Instance.new("BlurEffect")
-	acrylicBlur.Name = "CascadeAcrylicBlur"
+	acrylicBlur.Name = "StacOnfAcrylicBlur"
 	acrylicBlur.Size = 14
 	acrylicBlur.Parent = lighting
 end
@@ -123,7 +125,7 @@ end)
 
 local currentMode = "Dark"
 local currentAccent = "Blue"
-local currentCascadeGui = nil
+local currentStacOnfGui = nil
 
 local modeColors = {
 	Dark = {
@@ -283,8 +285,8 @@ local function closeMiddlePanel()
 	end
 end
 
-_G.CascadeOpenMiddlePanel = openMiddlePanel
-_G.CascadeCloseMiddlePanel = closeMiddlePanel
+_G.StacOnfOpenMiddlePanel = openMiddlePanel
+_G.StacOnfCloseMiddlePanel = closeMiddlePanel
 
 local function createMiddlePanel(targetGui)
 	local body = targetGui:FindFirstChild("Body", true)
@@ -967,7 +969,7 @@ local function installSidebarChrome(targetGui)
 end
 
 local function applyModernVisuals(targetGui)
-	currentCascadeGui = targetGui
+	currentStacOnfGui = targetGui
 	local function updateVisual(obj)
 		if not obj.Parent then return end
 		if obj:IsA("UICorner") then
@@ -1120,7 +1122,7 @@ end
 
 local function smoothTransition(newMode, newAccentName)
 	local tweenInfo = TweenInfo.new(0.38, Enum.EasingStyle.Quart, Enum.EasingDirection.Out)
-	local targetGui = currentCascadeGui
+	local targetGui = currentStacOnfGui
 	local snapshot = {}
 
 	if targetGui then
@@ -1216,7 +1218,7 @@ local function smoothTransition(newMode, newAccentName)
 	end)
 end
 
-_G.CascadeSmoothTransition = smoothTransition
+_G.StacOnfSmoothTransition = smoothTransition
 
 task.defer(function()
 	local targets = {}
@@ -1232,7 +1234,7 @@ task.defer(function()
 		table.insert(targets, localPlayer.PlayerGui)
 	end
 	for _, t in ipairs(targets) do
-		local c = t:FindFirstChild("Cascade")
+		local c = t:FindFirstChild("StacOnf")
 		if c then
 			applyModernVisuals(c)
 			break
@@ -1280,7 +1282,7 @@ do
 			Value = true,
 			ValueChanged = function(self, value)
 				app:Notification({
-					App = "Cascade",
+					App = "StacOnf",
 					Title = "Pipeline Update",
 					Subtitle = "Low Latency Rendering set to " .. tostring(value),
 					Duration = 2.5,
@@ -1315,7 +1317,7 @@ do
 			Pushed = function()
 				local fps = math.floor(1 / (workspaceService:GetRealPhysicsFPS() > 0 and workspaceService:GetRealPhysicsFPS() or 60))
 				app:Notification({
-					App = "Cascade",
+					App = "StacOnf",
 					Title = "Telemetry Echo",
 					Subtitle = "Connection solid. Engine heartbeat responsive.",
 					Duration = 3,
@@ -1334,7 +1336,7 @@ do
 				collectgarbage("collect")
 				local after = gcinfo()
 				app:Notification({
-					App = "Cascade",
+					App = "StacOnf",
 					Title = "GC Complete",
 					Subtitle = ("Freed ~%d KB of client memory"):format(math.max(0, before - after)),
 					Duration = 3.5,
@@ -1404,7 +1406,7 @@ do
 					lighting.Brightness = 2.4
 				end
 				app:Notification({
-					App = "Cascade",
+					App = "StacOnf",
 					Title = "Lighting Preset",
 					Subtitle = "Applied preset: " .. name,
 					Duration = 2,
@@ -1488,7 +1490,7 @@ do
 					targetHum.WalkSpeed = 16
 					targetHum.JumpPower = 50
 					app:Notification({
-						App = "Cascade",
+						App = "StacOnf",
 						Title = "Locomotion Reset",
 						Subtitle = "WalkSpeed restored to 16, JumpPower to 50",
 						Duration = 2,
@@ -1605,7 +1607,7 @@ do
 			ValueChanged = function(self, value)
 				minimizeKey = value
 				app:Notification({
-					App = "Cascade",
+					App = "StacOnf",
 					Title = "Hotkey Updated",
 					Subtitle = "Minimize hotkey bound to " .. tostring(value.Name),
 					Duration = 2.5,
@@ -1780,8 +1782,8 @@ do
 end
 
 app:Notification({
-	App = "Cascade",
+	App = "StacOnf",
 	Title = "System Online",
-	Subtitle = "Cascade Deck initialized successfully. Press RightControl to toggle.",
+	Subtitle = "StacOnf initialized successfully. Press RightControl to toggle.",
 	Duration = 4,
 })

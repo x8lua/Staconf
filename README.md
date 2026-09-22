@@ -14,10 +14,10 @@ Independent prototype featuring dynamic hover dock, 125% decoupled inner scale, 
 loadstring(game:HttpGet("https://raw.githubusercontent.com/x8lua/Staconf/main/console_ui_demo.luau"))()
 ```
 
-### 2. Cascade Sequoia Deck
+### 2. StacOnf Sequoia Deck
 Sequoia-inspired desktop console powered by Cascade UI with Electric Blue contrast accents:
 ```luau
-loadstring(game:HttpGet("https://raw.githubusercontent.com/x8lua/Staconf/main/cascade_demo.luau"))()
+loadstring(game:HttpGet("https://raw.githubusercontent.com/x8lua/Staconf/main/staconf_demo.luau"))()
 ```
 
 ### 3. Universal Entry Loader
@@ -36,7 +36,7 @@ loadstring(game:HttpGet("https://raw.githubusercontent.com/x8lua/Staconf/main/in
 - **High-Contrast Dark Theme**: Deep charcoal `#101015` base paired with crisp white labels and vibrant Electric Blue accent highlights.
 - **Zero Library Dependencies**: 100% native Luau implementation.
 
-### Cascade Sequoia Deck (`cascade_demo.luau`)
+### StacOnf Sequoia Deck (`staconf_demo.luau`)
 - **macOS Sequoia Window Architecture**: Traffic light window controls, sidebar search above a local Sign in panel, draggable and resizable frames.
 - **Compact Sidebar**: Semibold SF Pro tab titles, 2px tab gaps, solid sidebar/content surfaces without a seam divider, and one rounded outer clip. Sign in toggles a local demo account only; it does not authenticate or send credentials.
 - **Responsive Pointer Panel**: SF Pro typography, synchronized theme colors, animated toggles and buttons, and a draggable slider with concise motion feedback.
