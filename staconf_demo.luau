@@ -189,7 +189,8 @@ local function createNotificationGlass(gui, scale, options)
 			for index, spec in ipairs(item.layout) do
 				local part = item.parts[index]
 				local w, h = math.max(0.001, spec[4] * width), math.max(0.001, spec[5] * height)
-				part.Size = spec[7] and Vector3.new(0.01, w, h) or Vector3.new(0.01, h, w)
+				local thickness = options.Thickness or 0.01
+				part.Size = spec[7] and Vector3.new(thickness, w, h) or Vector3.new(thickness, h, w)
 				part.CFrame = CFrame.new(world + cam.RightVector * spec[2] * width - cam.UpVector * spec[3] * height) * cam.Rotation * CFrame.Angles(0, 0, math.rad(spec[6])) * CFrame.Angles(0, -math.pi / 2, 0)
 				part.Color = currentMode == "Light" and Color3.fromRGB(226, 232, 240) or Color3.fromRGB(85, 92, 108)
 				local base = options.Transparency or 0.94
@@ -1225,7 +1226,8 @@ local function installSidebarChrome(targetGui)
 	corner.Parent = surface
 	local windowGlass = createNotificationGlass(targetGui, { Scale = 1 }, {
 		Name = "StacOnfWindowGlass",
-		Transparency = 0.975,
+		Transparency = 0.86,
+		Thickness = 0.045,
 		HighlightTransparency = 0.99,
 		Depth = 0.8,
 	})
