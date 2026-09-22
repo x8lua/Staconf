@@ -35,6 +35,36 @@ cleanupExisting()
 local importUrl = "https://github.com/cascadeui/Cascade/releases/latest/download/dist.luau"
 local cascade = loadstring(game:HttpGetAsync(importUrl))()
 
+local function getAsset(fileName, rawUrl)
+	local localPath = "Staconf/assets/" .. fileName
+	if typeof(getcustomasset) == "function" and typeof(writefile) == "function" then
+		local hasFile = (typeof(isfile) == "function" and isfile(localPath))
+		if not hasFile then
+			local s, data = pcall(function()
+				return game:HttpGetAsync(rawUrl)
+			end)
+			if s and data then
+				if typeof(makefolder) == "function" then
+					pcall(function()
+						makefolder("Staconf")
+						makefolder("Staconf/assets")
+					end)
+				end
+				pcall(function()
+					writefile(localPath, data)
+				end)
+			end
+		end
+		local sAsset, assetId = pcall(function()
+			return getcustomasset(localPath)
+		end)
+		if sAsset and assetId then
+			return assetId
+		end
+	end
+	return rawUrl
+end
+
 local function titledRow(parent, title, subtitle)
 	local row = parent:Row({
 		SearchIndex = title,
@@ -110,7 +140,7 @@ local function applyModernVisuals(targetGui)
 			obj.BackgroundTransparency = 0.45
 			obj.BackgroundColor3 = Color3.fromRGB(24, 27, 38)
 		elseif obj.Name == "Toolbar" and obj:IsA("Frame") then
-			obj.BackgroundTransparency = 0.65
+			obj.BackgroundTransparency = 1
 		elseif obj.Name == "ContentBody" and obj:IsA("Frame") then
 			obj.BackgroundTransparency = 0.28
 			obj.BackgroundColor3 = Color3.fromRGB(14, 16, 22)
@@ -412,41 +442,25 @@ do
 end
 
 do
-	local prefSection = window:Section({
-		Title = "PREFERENCES",
+	local appearanceSection = window:Section({
+		Title = "APPEARANCE",
 		Disclosure = false,
 	})
 
-	local styleTab = prefSection:Tab({
+	local appearanceTab = appearanceSection:Tab({
 		Title = "Appearance",
-		Icon = cascade.Symbols.paintbrush,
+		Icon = getAsset("appearance.png", "https://raw.githubusercontent.com/x8lua/Staconf/main/assets/appearance.png"),
 	})
 
-	local appSection = styleTab:PageSection({
-		Title = "Theme & Visual Accents",
-		Subtitle = "Customize the Sequoia design language",
+	local modeSection = appearanceTab:PageSection({
+		Title = "Appearance",
+		Subtitle = "Configure desktop visual presentation",
 	})
 
-	local appForm = appSection:Form()
-
-	local accentList = { "Blue", "Purple", "Green", "Orange", "Pink", "Red", "Yellow", "Graphite" }
+	local modeForm = modeSection:Form()
 
 	do
-		local row = titledRow(appForm, "Accent Color", "Tint color applied to active controls and tabs")
-		row:Right():PopUpButton({
-			Options = accentList,
-			Value = 1,
-			ValueChanged = function(self, index)
-				local selectedName = self.Options[index]
-				if cascade.Accents[selectedName] then
-					app.Accent = cascade.Accents[selectedName]
-				end
-			end,
-		})
-	end
-
-	do
-		local row = titledRow(appForm, "Theme Mode", "Base background lighting mode")
+		local row = titledRow(modeForm, "Interface Mode", "Select system lighting scheme")
 		row:Right():PopUpButton({
 			Options = { "Dark", "Light" },
 			Value = 1,
@@ -461,8 +475,74 @@ do
 		})
 	end
 
+	local themeSection = appearanceTab:PageSection({
+		Title = "Theme",
+		Subtitle = "Accent palette and highlight preferences",
+	})
+
+	local themeForm = themeSection:Form()
+
+	local accentList = { "Blue", "Purple", "Pink", "Red", "Orange", "Yellow", "Green", "Graphite" }
+
 	do
-		local row = titledRow(appForm, "Window Dropshadow", "Toggle depth shadow around window frame")
+		local row = titledRow(themeForm, "Colour", "Tint color applied to active controls and tabs")
+		row:Right():PopUpButton({
+			Options = accentList,
+			Value = 1,
+			ValueChanged = function(self, index)
+				local selectedName = self.Options[index]
+				if cascade.Accents[selectedName] then
+					app.Accent = cascade.Accents[selectedName]
+				end
+			end,
+		})
+	end
+
+	do
+		local row = titledRow(themeForm, "Text Highlight Colour", "Accent tint for selected text elements")
+		row:Right():PopUpButton({
+			Options = { "Automatic", "Blue", "Purple", "Pink", "Red", "Orange", "Yellow", "Green", "Graphite" },
+			Value = 1,
+		})
+	end
+
+	do
+		local row = titledRow(themeForm, "Icon and Widget Style", "Visual presentation of interface elements")
+		row:Right():PopUpButton({
+			Options = { "Default", "Dark", "Clear", "Tinted" },
+			Value = 1,
+		})
+	end
+
+	do
+		local row = titledRow(themeForm, "Folder Colour", "Directory and group container tint")
+		row:Right():PopUpButton({
+			Options = { "Automatic", "Blue", "Purple", "Pink", "Graphite" },
+			Value = 1,
+		})
+	end
+
+	local fxSection = appearanceTab:PageSection({
+		Title = "Window Effects",
+		Subtitle = "Frosted glass acrylic blur and ambient occlusion",
+	})
+
+	local fxForm = fxSection:Form()
+
+	do
+		local row = titledRow(fxForm, "Acrylic Blur", "Sample real-time world glass refraction through sidebar")
+		row:Right():Toggle({
+			Value = true,
+			ValueChanged = function(self, value)
+				if acrylicBlur then
+					acrylicBlur.Enabled = value
+				end
+			end,
+		})
+	end
+
+	do
+		local row = titledRow(fxForm, "Window Dropshadow", "Toggle depth shadow around window frame")
 		row:Right():Toggle({
 			Value = window.Dropshadow,
 			ValueChanged = function(self, value)
@@ -472,17 +552,7 @@ do
 	end
 
 	do
-		local row = titledRow(appForm, "Background Blur", "Apply frosted glass blur to window body")
-		row:Right():Toggle({
-			Value = window.UIBlur,
-			ValueChanged = function(self, value)
-				window.UIBlur = value
-			end,
-		})
-	end
-
-	do
-		local row = titledRow(appForm, "Minimize Hotkey", "Keycode to toggle window visibility")
+		local row = titledRow(fxForm, "Minimize Hotkey", "Keycode to toggle window visibility")
 		row:Right():KeybindField({
 			Value = minimizeKey,
 			ValueChanged = function(self, value)
