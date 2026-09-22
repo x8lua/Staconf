@@ -1093,7 +1093,7 @@ local function applyModernVisuals(targetGui)
 					corner.Parent = badge
 					sym.Parent = badge
 				end
-				local fullIcon = titleObj.Text == "Appearance"
+				local fullIcon = titleObj.Text == "Appearance" or titleObj.Text == "Config"
 				badge.BackgroundColor3 = colors[titleObj.Text] or colors.Telemetry
 				badge.BackgroundTransparency = fullIcon and 1 or 0
 				sym.Size = fullIcon and UDim2.fromScale(1, 1) or UDim2.fromOffset(14, 14)
@@ -1626,6 +1626,16 @@ do
 			end,
 		})
 	end
+end
+
+do
+	local configTab = window:Tab({
+		Title = "Config",
+		Icon = getAsset("config.png", "https://raw.githubusercontent.com/x8lua/Staconf/main/assets/config.png"),
+	})
+	configTab:PageSection({
+		Title = "Config",
+	})
 end
 
 do
