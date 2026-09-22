@@ -152,10 +152,9 @@ local function createNotificationGlass(gui, scale, options)
 		local camera = workspaceService.CurrentCamera
 		if not camera then return end
 		local cam = camera:GetRenderCFrame()
-		local inset = gui.IgnoreGuiInset and Vector2.zero or game:GetService("GuiService"):GetGuiInset()
 		for card, item in pairs(items) do
 			local size = card.AbsoluteSize
-			local pos = card.AbsolutePosition + inset
+			local pos = card.AbsolutePosition
 			local visible, transparency = visibility(card)
 			visible = visible and size.X > 1 and size.Y > 1
 			item.model.Parent = visible and folder or nil
@@ -180,7 +179,7 @@ local function createNotificationGlass(gui, scale, options)
 			}
 			end
 			local function project(x, y)
-				local ray = camera:ViewportPointToRay(x, y)
+				local ray = camera:ScreenPointToRay(x, y)
 				return ray.Origin + ray.Direction * ((options.Depth or 0.6) / ray.Direction:Dot(cam.LookVector))
 			end
 			local center = pos + size / 2
@@ -1226,8 +1225,8 @@ local function installSidebarChrome(targetGui)
 	corner.Parent = surface
 	local windowGlass = createNotificationGlass(targetGui, { Scale = 1 }, {
 		Name = "StacOnfWindowGlass",
-		Transparency = 0.985,
-		HighlightTransparency = 0.995,
+		Transparency = 0.975,
+		HighlightTransparency = 0.99,
 		Depth = 0.8,
 	})
 	local hasWindowGlass = windowGlass.Add(surface)
@@ -1361,9 +1360,9 @@ local function installSidebarChrome(targetGui)
 		refreshing = true
 		local light = currentMode == "Light"
 		body.BackgroundTransparency = 1
-		sidebar.BackgroundTransparency = hasWindowGlass and (light and 0.12 or 0.08) or 0
+		sidebar.BackgroundTransparency = hasWindowGlass and (light and 0.17 or 0.12) or 0
 		sidebar.BackgroundColor3 = light and Color3.fromRGB(239, 240, 244) or Color3.fromRGB(29, 31, 39)
-		content.BackgroundTransparency = hasWindowGlass and (light and 0.08 or 0.05) or 0
+		content.BackgroundTransparency = hasWindowGlass and (light and 0.12 or 0.08) or 0
 		content.BackgroundColor3 = light and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(20, 22, 29)
 		searchBody.BackgroundColor3 = light and Color3.fromRGB(226, 230, 236) or Color3.fromRGB(43, 46, 57)
 		searchBody.BackgroundTransparency = 0
