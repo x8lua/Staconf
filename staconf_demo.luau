@@ -120,7 +120,7 @@ local function createNotificationCenter(owner, parent)
 	host.Size = UDim2.new(1, -32, 1, -28)
 	host.Parent = gui
 	local displayScale = Instance.new("UIScale")
-	displayScale.Scale = 0.5
+	displayScale.Scale = 0.8
 	displayScale.Parent = host
 	local limit = Instance.new("UISizeConstraint")
 	limit.MaxSize = Vector2.new(414, 10000)
@@ -133,7 +133,7 @@ local function createNotificationCenter(owner, parent)
 	local function style(entry)
 		local light = currentMode == "Light"
 		entry.card.BackgroundColor3 = light and Color3.fromRGB(242, 243, 247) or Color3.fromRGB(34, 37, 47)
-		entry.card.BackgroundTransparency = 0
+		entry.card.BackgroundTransparency = light and 0.18 or 0.22
 		local primary = light and Color3.fromRGB(37, 40, 48) or Color3.fromRGB(244, 245, 249)
 		local secondary = light and Color3.fromRGB(108, 113, 125) or Color3.fromRGB(169, 174, 189)
 		for _, child in ipairs(entry.card:GetChildren()) do
