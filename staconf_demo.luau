@@ -2582,21 +2582,21 @@ local function installSidebarChrome(targetGui)
 	searchResultsScroll.ScrollBarImageTransparency = 0.5
 	searchResultsScroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
 	searchResultsScroll.CanvasSize = UDim2.new(0, 0, 0, 0)
-	searchResultsScroll.Position = UDim2.fromOffset(0, 94)
-	searchResultsScroll.Size = UDim2.new(1, 0, 1, -102)
+	searchResultsScroll.Position = UDim2.fromOffset(0, 88)
+	searchResultsScroll.Size = UDim2.new(1, 0, 1, -96)
 	searchResultsScroll.Visible = false
 	searchResultsScroll.Parent = margins
 
 	local srlPad = Instance.new("UIPadding")
-	srlPad.PaddingLeft = UDim.new(0, 12)
-	srlPad.PaddingRight = UDim.new(0, 12)
-	srlPad.PaddingTop = UDim.new(0, 6)
+	srlPad.PaddingLeft = UDim.new(0, 10)
+	srlPad.PaddingRight = UDim.new(0, 10)
+	srlPad.PaddingTop = UDim.new(0, 4)
 	srlPad.PaddingBottom = UDim.new(0, 12)
 	srlPad.Parent = searchResultsScroll
 
 	local srlLayout = Instance.new("UIListLayout")
 	srlLayout.SortOrder = Enum.SortOrder.LayoutOrder
-	srlLayout.Padding = UDim.new(0, 10)
+	srlLayout.Padding = UDim.new(0, 8)
 	srlLayout.Parent = searchResultsScroll
 
 	local searchClearBtn = Instance.new("TextButton")
@@ -2782,7 +2782,7 @@ local function installSidebarChrome(targetGui)
 				for itemIdx, item in ipairs(matchedSubs) do
 					local itemBtn = Instance.new("TextButton")
 					itemBtn.Name = "Item_" .. itemIdx
-					itemBtn.Size = UDim2.new(1, 0, 0, 22)
+					itemBtn.Size = UDim2.new(1, 0, 0, 24)
 					itemBtn.BackgroundTransparency = 1
 					itemBtn.Text = ""
 					itemBtn.AutoButtonColor = false
@@ -2796,8 +2796,8 @@ local function installSidebarChrome(targetGui)
 					local itemLabel = Instance.new("TextLabel")
 					itemLabel.Name = "Label"
 					itemLabel.BackgroundTransparency = 1
-					itemLabel.Position = UDim2.new(0, 28, 0, 0)
-					itemLabel.Size = UDim2.new(1, -30, 1, 0)
+					itemLabel.Position = UDim2.new(0, 24, 0, 0)
+					itemLabel.Size = UDim2.new(1, -26, 1, 0)
 					itemLabel.FontFace = staconfFont(Enum.FontWeight.Medium)
 					itemLabel.TextSize = 13
 					itemLabel.TextColor3 = secondary
