@@ -854,8 +854,9 @@ local function createTooltipManager(owner, parent)
 	gui.Name = "StacOnfTooltips"
 	gui.ResetOnSpawn = false
 	gui.DisplayOrder = 1005
+	gui.IgnoreGuiInset = true
+	gui.ScreenInsets = Enum.ScreenInsets.None
 	gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-	gui.ScreenInsets = Enum.ScreenInsets.CoreUISafeInsets
 	gui.Parent = parent
 
 	local displayScale = Instance.new("UIScale")
@@ -867,49 +868,50 @@ local function createTooltipManager(owner, parent)
 
 	local card = Instance.new("CanvasGroup")
 	card.Name = "TooltipCard"
-	card.BackgroundColor3 = Color3.fromRGB(34, 37, 47)
-	card.BackgroundTransparency = 0.22
+	card.BackgroundColor3 = Color3.fromRGB(28, 30, 38)
+	card.BackgroundTransparency = 0.08
 	card.BorderSizePixel = 0
 	card.GroupTransparency = 1
 	card.Visible = false
-	card.Size = UDim2.fromOffset(200, 36)
+	card.AnchorPoint = Vector2.new(0.5, 1)
+	card.AutomaticSize = Enum.AutomaticSize.XY
+	card.Size = UDim2.new(0, 0, 0, 0)
 	card.Parent = gui
 
 	local corner = Instance.new("UICorner")
-	corner.CornerRadius = UDim.new(0, 10)
+	corner.CornerRadius = UDim.new(0, 8)
 	corner.Parent = card
 
 	local rim = Instance.new("UIStroke")
 	rim.Color = Color3.fromRGB(235, 242, 255)
-	rim.Transparency = 0.72
+	rim.Transparency = 0.75
 	rim.Thickness = 1
 	rim.Parent = card
 
-	local shadow = Instance.new("ImageLabel")
-	shadow.Name = "Shadow"
-	shadow.BackgroundTransparency = 1
-	shadow.Position = UDim2.new(0, -12, 0, -10)
-	shadow.Size = UDim2.new(1, 24, 1, 24)
-	shadow.Image = "rbxassetid://6015897843"
-	shadow.ImageColor3 = Color3.fromRGB(0, 0, 0)
-	shadow.ImageTransparency = 0.6
-	shadow.ScaleType = Enum.ScaleType.Slice
-	shadow.SliceCenter = Rect.new(49, 49, 450, 450)
-	shadow.ZIndex = -1
-	shadow.Parent = card
+	local pad = Instance.new("UIPadding")
+	pad.PaddingTop = UDim.new(0, 6)
+	pad.PaddingBottom = UDim.new(0, 6)
+	pad.PaddingLeft = UDim.new(0, 10)
+	pad.PaddingRight = UDim.new(0, 10)
+	pad.Parent = card
+
+	local limit = Instance.new("UISizeConstraint")
+	limit.MaxSize = Vector2.new(280, 200)
+	limit.MinSize = Vector2.new(30, 20)
+	limit.Parent = card
 
 	local label = Instance.new("TextLabel")
 	label.Name = "Content"
 	label.BackgroundTransparency = 1
 	label.FontFace = staconfFont(Enum.FontWeight.Medium)
-	label.TextSize = 13
+	label.TextSize = 12
 	label.TextColor3 = Color3.fromRGB(244, 245, 249)
-	label.TextXAlignment = Enum.TextXAlignment.Left
+	label.TextXAlignment = Enum.TextXAlignment.Center
 	label.TextYAlignment = Enum.TextYAlignment.Center
 	label.RichText = false
 	label.TextWrapped = true
-	label.Position = UDim2.fromOffset(10, 7)
-	label.Size = UDim2.new(1, -20, 1, -14)
+	label.AutomaticSize = Enum.AutomaticSize.XY
+	label.Size = UDim2.new(0, 0, 0, 0)
 	label.Parent = card
 
 	local glassItem = glass.Add(card)
@@ -919,10 +921,10 @@ local function createTooltipManager(owner, parent)
 
 	local function styleTooltip()
 		local light = currentMode == "Light"
-		card.BackgroundColor3 = light and Color3.fromRGB(242, 243, 247) or Color3.fromRGB(34, 37, 47)
-		card.BackgroundTransparency = glassItem and (light and 0.48 or 0.32) or (light and 0.18 or 0.22)
-		rim.Color = light and Color3.fromRGB(200, 204, 215) or Color3.fromRGB(235, 242, 255)
-		label.TextColor3 = light and Color3.fromRGB(37, 40, 48) or Color3.fromRGB(244, 245, 249)
+		card.BackgroundColor3 = light and Color3.fromRGB(246, 248, 252) or Color3.fromRGB(28, 30, 38)
+		card.BackgroundTransparency = light and 0.12 or 0.08
+		rim.Color = light and Color3.fromRGB(200, 205, 218) or Color3.fromRGB(235, 242, 255)
+		label.TextColor3 = light and Color3.fromRGB(35, 38, 46) or Color3.fromRGB(244, 245, 249)
 	end
 
 	local function hide()
@@ -956,40 +958,19 @@ local function createTooltipManager(owner, parent)
 		styleTooltip()
 		label.Text = text
 
-		local maxTextWidth = 260
-		local ok, bounds = pcall(function()
-			local params = Instance.new("GetTextBoundsParams")
-			params.Text = text
-			params.Font = label.FontFace
-			params.Size = 13
-			params.Width = maxTextWidth
-			local res = textService:GetTextBoundsAsync(params)
-			params:Destroy()
-			return res
-		end)
-		local textWidth = ok and bounds.X or 180
-		local textHeight = ok and bounds.Y or 20
-		local cardWidth = math.clamp(textWidth + 24, 80, 284)
-		local cardHeight = math.clamp(textHeight + 16, 32, 160)
-
-		card.Size = UDim2.fromOffset(cardWidth, cardHeight)
-		label.Size = UDim2.new(1, -20, 1, -14)
-
 		local targetPos = targetGui.AbsolutePosition
 		local targetSize = targetGui.AbsoluteSize
 		local screenWidth = gui.AbsoluteSize.X > 0 and gui.AbsoluteSize.X or 1920
 
-		local posX = targetPos.X + (targetSize.X / 2) - (cardWidth / 2)
-		posX = math.clamp(posX, 12, screenWidth - cardWidth - 12)
+		local centerX = targetPos.X + (targetSize.X / 2)
+		centerX = math.clamp(centerX, 140, screenWidth - 140)
 
-		local posY = targetPos.Y - cardHeight - 8
-		local startYOffset = 4
-		if posY < 12 then
-			posY = targetPos.Y + targetSize.Y + 8
-			startYOffset = -4
-		end
+		local placeBelow = targetPos.Y < 320
+		local targetY = placeBelow and (targetPos.Y + targetSize.Y + 6) or (targetPos.Y - 6)
+		local startYOffset = placeBelow and -4 or 4
 
-		card.Position = UDim2.fromOffset(posX, posY + startYOffset)
+		card.AnchorPoint = Vector2.new(0.5, placeBelow and 0 or 1)
+		card.Position = UDim2.fromOffset(centerX, targetY + startYOffset)
 		card.GroupTransparency = 1
 		card.Visible = true
 
@@ -998,8 +979,8 @@ local function createTooltipManager(owner, parent)
 			activeTween:Destroy()
 			activeTween = nil
 		end
-		local tween = tweenService:Create(card, TweenInfo.new(0.22, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {
-			Position = UDim2.fromOffset(posX, posY),
+		local tween = tweenService:Create(card, TweenInfo.new(0.2, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {
+			Position = UDim2.fromOffset(centerX, targetY),
 			GroupTransparency = 0,
 		})
 		activeTween = tween
