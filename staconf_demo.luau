@@ -1062,7 +1062,7 @@ local function showDialog(options)
 		scrim.Size = UDim2.fromScale(1, 1)
 		scrim.Position = UDim2.fromScale(0, 0)
 		scrim.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-		scrim.BackgroundTransparency = isLight and 0.65 or 0.45
+		scrim.BackgroundTransparency = 1
 		scrim.BorderSizePixel = 0
 		scrim.ZIndex = 1
 		scrim.Parent = dialogContainer
@@ -1081,7 +1081,7 @@ local function showDialog(options)
 	cardWrapper.ZIndex = 10
 
 	local cardScale = Instance.new("UIScale")
-	cardScale.Scale = 1.0
+	cardScale.Scale = 0.85
 	cardScale.Parent = cardWrapper
 
 	local card = Instance.new("CanvasGroup")
@@ -1139,36 +1139,19 @@ local function showDialog(options)
 		helpBtn.Parent = layoutIgnore
 	end
 
-	local innerContent = Instance.new("Frame")
-	innerContent.Name = "InnerContent"
-	innerContent.Size = UDim2.fromScale(1, 0)
-	innerContent.AutomaticSize = Enum.AutomaticSize.Y
-	innerContent.BackgroundTransparency = 1
-	innerContent.BorderSizePixel = 0
-	innerContent.ZIndex = 11
-	innerContent.Parent = card
-
-	local innerScale = Instance.new("UIScale")
-	innerScale.Scale = 1
-	innerScale.Parent = innerContent
-
-	cardScale:GetPropertyChangedSignal("Scale"):Connect(function()
-		innerScale.Scale = 1 / math.max(0.01, cardScale.Scale)
-	end)
-
 	local padding = Instance.new("UIPadding")
 	padding.PaddingTop = UDim.new(0, 20)
 	padding.PaddingBottom = UDim.new(0, 18)
 	padding.PaddingLeft = UDim.new(0, 20)
 	padding.PaddingRight = UDim.new(0, 20)
-	padding.Parent = innerContent
+	padding.Parent = card
 
 	local list = Instance.new("UIListLayout")
 	list.FillDirection = Enum.FillDirection.Vertical
 	list.SortOrder = Enum.SortOrder.LayoutOrder
 	list.HorizontalAlignment = Enum.HorizontalAlignment.Center
 	list.Padding = UDim.new(0, 10)
-	list.Parent = innerContent
+	list.Parent = card
 
 	if options.Icon ~= false then
 		local iconType = options.Icon or "Warning"
@@ -1195,7 +1178,7 @@ local function showDialog(options)
 			iconImg.Image = iconType
 			if options.IconColor then iconImg.ImageColor3 = options.IconColor end
 		end
-		iconImg.Parent = innerContent
+		iconImg.Parent = card
 	end
 
 	local titleLabel = Instance.new("TextLabel")
@@ -1207,12 +1190,13 @@ local function showDialog(options)
 	titleLabel.TextSize = 14.5
 	titleLabel.LineHeight = 1.15
 	titleLabel.TextWrapped = true
+	titleLabel.TextScaled = false
 	titleLabel.TextXAlignment = Enum.TextXAlignment.Center
 	titleLabel.TextColor3 = isLight and Color3.fromRGB(37, 40, 48) or Color3.fromRGB(244, 245, 249)
 	titleLabel.BackgroundTransparency = 1
 	titleLabel.LayoutOrder = 2
 	titleLabel.ZIndex = 12
-	titleLabel.Parent = innerContent
+	titleLabel.Parent = card
 
 	local descLabel = nil
 	local descText = options.Description or options.Content
@@ -1226,12 +1210,13 @@ local function showDialog(options)
 		descLabel.TextSize = 12.5
 		descLabel.LineHeight = 1.2
 		descLabel.TextWrapped = true
+		descLabel.TextScaled = false
 		descLabel.TextXAlignment = Enum.TextXAlignment.Center
 		descLabel.TextColor3 = isLight and Color3.fromRGB(108, 113, 125) or Color3.fromRGB(169, 174, 189)
 		descLabel.BackgroundTransparency = 1
 		descLabel.LayoutOrder = 3
 		descLabel.ZIndex = 12
-		descLabel.Parent = innerContent
+		descLabel.Parent = card
 	end
 
 	local footnoteLabel = nil
@@ -1245,12 +1230,13 @@ local function showDialog(options)
 		footnoteLabel.TextSize = 11
 		footnoteLabel.LineHeight = 1.15
 		footnoteLabel.TextWrapped = true
+		footnoteLabel.TextScaled = false
 		footnoteLabel.TextXAlignment = Enum.TextXAlignment.Center
 		footnoteLabel.TextColor3 = isLight and Color3.fromRGB(130, 134, 145) or Color3.fromRGB(145, 150, 165)
 		footnoteLabel.BackgroundTransparency = 1
 		footnoteLabel.LayoutOrder = 4
 		footnoteLabel.ZIndex = 12
-		footnoteLabel.Parent = innerContent
+		footnoteLabel.Parent = card
 	end
 
 	local inputBoxes = {}
@@ -1296,6 +1282,7 @@ local function showDialog(options)
 			tb.PlaceholderText = inp.Placeholder or ""
 			tb.FontFace = staconfFont(Enum.FontWeight.Regular)
 			tb.TextSize = 12.5
+			tb.TextScaled = false
 			tb.TextColor3 = isLight and Color3.fromRGB(37, 40, 48) or Color3.fromRGB(244, 245, 249)
 			tb.PlaceholderColor3 = isLight and Color3.fromRGB(138, 142, 155) or Color3.fromRGB(130, 135, 152)
 			tb.TextXAlignment = Enum.TextXAlignment.Left
@@ -1317,7 +1304,7 @@ local function showDialog(options)
 			inputBoxes[inp.Key or idx] = tb
 			table.insert(inputsRegistry, { card = iCard, stroke = iStroke, tb = tb })
 		end
-		inputsFrame.Parent = innerContent
+		inputsFrame.Parent = card
 	end
 
 	local btnRow = Instance.new("Frame")
@@ -1357,10 +1344,10 @@ local function showDialog(options)
 		if isClosed then return end
 		isClosed = true
 		if scrim then
-			tweenService:Create(scrim, TweenInfo.new(0.2, Enum.EasingStyle.Linear), { BackgroundTransparency = 1 }):Play()
+			tweenService:Create(scrim, TweenInfo.new(0.5, Enum.EasingStyle.Linear), { BackgroundTransparency = 1 }):Play()
 		end
-		tweenService:Create(cardScale, TweenInfo.new(0.2, Enum.EasingStyle.Linear), { Scale = 0.88 }):Play()
-		local fadeOut = tweenService:Create(card, TweenInfo.new(0.2, Enum.EasingStyle.Linear), { GroupTransparency = 1 })
+		tweenService:Create(cardScale, TweenInfo.new(0.5, Enum.EasingStyle.Linear), { Scale = 0.85 }):Play()
+		local fadeOut = tweenService:Create(card, TweenInfo.new(0.5, Enum.EasingStyle.Linear), { GroupTransparency = 1 })
 		fadeOut:Play()
 		fadeOut.Completed:Connect(function()
 			dialogContainer:Destroy()
@@ -1393,12 +1380,6 @@ local function showDialog(options)
 		setOrTween(cardStroke, {
 			Color = light and Color3.fromRGB(0, 0, 0) or Color3.fromRGB(235, 242, 255),
 			Transparency = light and 0.88 or 0.72,
-		})
-		setOrTween(ambientShadow, {
-			ImageTransparency = light and 0.65 or 0.45,
-		})
-		setOrTween(contactShadow, {
-			ImageTransparency = light and 0.50 or 0.30,
 		})
 		if scrim then
 			setOrTween(scrim, {
@@ -1470,6 +1451,7 @@ local function showDialog(options)
 		local btn = Instance.new("TextButton")
 		btn.Name = "Button_" .. tostring(bIdx)
 		btn.Text = bConf.Text or "Button"
+		btn.TextScaled = false
 		btn.AutoButtonColor = false
 		btn.LayoutOrder = bIdx
 		btn.BorderSizePixel = 0
@@ -1549,7 +1531,7 @@ local function showDialog(options)
 		btn.Parent = btnRow
 		table.insert(buttonsRegistry, { btn = btn, stroke = bStroke, style = bConf.Style or "Secondary" })
 	end
-	btnRow.Parent = innerContent
+	btnRow.Parent = card
 
 	local dragging = false
 	local dragStart = nil
