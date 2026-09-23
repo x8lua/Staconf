@@ -1009,7 +1009,7 @@ end
 
 local function showDialog(options)
 	options = options or {}
-	local parentGui = getDialogGui()
+	local parentGui = (app and app.__instance and app.__instance.Parent and app.__instance) or getDialogGui()
 	local isLight = (currentMode == "Light")
 
 	local dialogContainer = Instance.new("Frame")
@@ -1017,7 +1017,7 @@ local function showDialog(options)
 	dialogContainer.Size = UDim2.fromScale(1, 1)
 	dialogContainer.Position = UDim2.fromScale(0, 0)
 	dialogContainer.BackgroundTransparency = 1
-	dialogContainer.ZIndex = 100
+	dialogContainer.ZIndex = 10000
 
 	local scrim = nil
 	if options.Modal ~= false then
@@ -1440,6 +1440,16 @@ local function showDialog(options)
 	cardWrapper.Parent = dialogContainer
 	dialogContainer.Parent = parentGui
 	table.insert(activeDialogs, dialogHandle)
+
+	if app and app.__instance then
+		local destroyConn
+		destroyConn = app.__instance.Destroying:Connect(function()
+			if destroyConn then destroyConn:Disconnect() end
+			if dialogContainer and dialogContainer.Parent then
+				dialogContainer.Parent = getDialogGui()
+			end
+		end)
+	end
 
 	if scrim then
 		tweenService:Create(scrim, TweenInfo.new(0.28, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), { BackgroundTransparency = 0.4 }):Play()
