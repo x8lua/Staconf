@@ -8303,7 +8303,6 @@ _G.__LarpkuranReportUIIncident = function(errMsg)
         end)
     end)
 end
-
 local Rere
 do
 	Rere = {}
@@ -8350,7 +8349,6 @@ do
 	}
 	_G.LarpkuranRereUI = Rere
 end
-
 local triggerLarpkuranRestart
 local INTERMISSION_SONGS
 do
@@ -9065,7 +9063,6 @@ do
         return Rere.Internal._Insert("Keybind", arguments, states)
     end
 end
-
 local Notify
 do
 	Notify = {}
@@ -9084,7 +9081,6 @@ do
 		return notifier
 	end
 end
-
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
@@ -29086,7 +29082,7 @@ controller.InitHitboxVisualizer = function()
         if not h then return end
         local attackerChar, isMe = hv.getAttacker(p)
         local attackerHRP = attackerChar and attackerChar:FindFirstChild("HumanoidRootPart")
-        local distToMe = if attackerHRP then (attackerHRP.Position - h.Position).Magnitude else hv.getDist(h.Position, p.Position)
+        local distToMe = (attackerHRP and (attackerHRP.Position - h.Position).Magnitude) or hv.getDist(h.Position, p.Position)
         if distToMe > 30 then return end
         local initialCF = p.CFrame
         if attackerHRP then
@@ -29460,7 +29456,6 @@ trackConnection("ControllerSync_Heartbeat", RunService.Heartbeat:Connect(functio
         if entries[1] then fakeStyle:set(entries[1].Name) end
     end
 end))
-
 local importUrl = "https://github.com/cascadeui/Cascade/releases/latest/download/dist.luau"
 local cascade = loadstring(game:HttpGetAsync(importUrl))()
 local function getAsset(fileName, rawUrl)
@@ -31605,6 +31600,7 @@ local appearanceTab
 local settingsTab
 local accountTab
 local searchRegistry = {}
+local scrollMainTabToSection
 local chromeConnections = {}
 local function chromeConnect(signal, callback)
 	local connection = signal:Connect(callback)
@@ -31794,8 +31790,946 @@ local function installSidebarChrome(targetGui)
 		part.Parent = avatar
 		local rounding = Instance.new("UICorner")
 		rounding.CornerRadius = UDim.new(1, 0)
-
-
+		rounding.Parent = part
+	end
+	if localPlayer and localPlayer.UserId > 0 then
+		local sAvatar = Instance.new("ImageLabel")
+		sAvatar.Name = "UserAvatar"
+		sAvatar.Size = UDim2.fromScale(1, 1)
+		sAvatar.BackgroundTransparency = 1
+		sAvatar.Image = "rbxthumb://type=AvatarHeadShot&id=" .. tostring(localPlayer.UserId) .. "&w=150&h=150"
+		sAvatar.ZIndex = 3
+		local sCorner = Instance.new("UICorner")
+		sCorner.CornerRadius = UDim.new(1, 0)
+		sCorner.Parent = sAvatar
+		sAvatar.Parent = avatar
+	end
+	local function text(name, value, y, size, weight)
+		local label = Instance.new("TextLabel")
+		label.Name = name
+		label.Text = value
+		label.Size = UDim2.new(1, -53, 0, 20)
+		label.Position = UDim2.fromOffset(50, y)
+		label.BackgroundTransparency = 1
+		label.TextXAlignment = Enum.TextXAlignment.Left
+		label.FontFace = staconfFont(weight)
+		label.TextSize = size
+		label.TextTruncate = Enum.TextTruncate.AtEnd
+		label.Parent = signIn
+		return label
+	end
+	local title = text("Title", localPlayer and localPlayer.DisplayName or "Free User", 7, 15, Enum.FontWeight.SemiBold)
+	local subtitle = text("Subtitle", localPlayer and ("@" .. localPlayer.Name) or "View account", 27, 11, Enum.FontWeight.Regular)
+	chromeConnect(signIn.Activated, function()
+		if not accountTab then return end
+		accountTab.Selected = true
+		if window.addToHistory then window.addToHistory(accountTab.__container) end
+		local page = accountTab.Structures.Page
+		page = typeof(page) == "Instance" and page or page.__instance
+		local profileSurface = page:FindFirstChild("ProfileSurface", true)
+		if profileSurface then
+			profileSurface.Position = UDim2.fromOffset(0, 12)
+			tweenService:Create(profileSurface, TweenInfo.new(0.32, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), { Position = UDim2.fromOffset(0, 0) }):Play()
+		end
+		task.delay(0.12, function()
+			if accountTab.Selected and refreshAccountPage then refreshAccountPage() end
+		end)
+	end)
+	local updating = false
+	local function alignContent()
+		if updating or not body.Parent then return end
+		updating = true
+		content.Size = UDim2.new(1, -sidebar.Size.X.Offset, 1, 0)
+		separator.Visible = false
+		separator.Size = UDim2.new(0, 0, 1, 0)
+		updating = false
+	end
+	chromeConnect(sidebar:GetPropertyChangedSignal("Size"), alignContent)
+	chromeConnect(content:GetPropertyChangedSignal("Size"), alignContent)
+	chromeConnect(separator:GetPropertyChangedSignal("Visible"), alignContent)
+	local function hideClip(obj)
+		obj.Visible = false
+		chromeConnect(obj:GetPropertyChangedSignal("Visible"), function() if obj.Visible then obj.Visible = false end end)
+	end
+	for _,name in ipairs({"CornerClip", "CornerClipLeft", "CornerClipRight"}) do
+		local object = content:FindFirstChild(name, true)
+		if object then hideClip(object) end
+	end
+	chromeConnect(raw(structures.Cornering):GetPropertyChangedSignal("CornerRadius"), function()
+		corner.CornerRadius = window.Maximized and UDim.new(0, 0) or UDim.new(0, 22)
+	end)
+	local searchResultsScroll = Instance.new("ScrollingFrame")
+	searchResultsScroll.Name = "SidebarSearchResults"
+	searchResultsScroll.BackgroundTransparency = 1
+	searchResultsScroll.BorderSizePixel = 0
+	searchResultsScroll.ScrollBarThickness = 2
+	searchResultsScroll.ScrollBarImageTransparency = 0.5
+	searchResultsScroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
+	searchResultsScroll.CanvasSize = UDim2.new(0, 0, 0, 0)
+	searchResultsScroll.Position = UDim2.fromOffset(0, 88)
+	searchResultsScroll.Size = UDim2.new(1, 0, 1, -96)
+	searchResultsScroll.Visible = false
+	searchResultsScroll.Parent = margins
+	local srlPad = Instance.new("UIPadding")
+	srlPad.PaddingLeft = UDim.new(0, 10)
+	srlPad.PaddingRight = UDim.new(0, 10)
+	srlPad.PaddingTop = UDim.new(0, 4)
+	srlPad.PaddingBottom = UDim.new(0, 12)
+	srlPad.Parent = searchResultsScroll
+	local srlLayout = Instance.new("UIListLayout")
+	srlLayout.SortOrder = Enum.SortOrder.LayoutOrder
+	srlLayout.Padding = UDim.new(0, 8)
+	srlLayout.Parent = searchResultsScroll
+	local function clearSearchResults()
+		for _, child in ipairs(searchResultsScroll:GetChildren()) do
+			if child:IsA("GuiObject") and child ~= srlPad and child ~= srlLayout then
+				child:Destroy()
+			end
+		end
+	end
+	local function highlightText(originalText, query, primaryCol, accentCol)
+		local orig = tostring(originalText or "")
+		if query == "" then return orig end
+		local lOrig = orig:lower()
+		local lQuery = query:lower()
+		local sIdx, eIdx = lOrig:find(lQuery, 1, true)
+		if not sIdx then return orig end
+		local hex = accentCol:ToHex()
+		local before = orig:sub(1, sIdx - 1)
+		local match = orig:sub(sIdx, eIdx)
+		local after = orig:sub(eIdx + 1)
+		return string.format('%s<font color="#%s"><b>%s</b></font>%s', before, hex, match, after)
+	end
+	local function updateSidebarSearch(query)
+		local q = (query or ""):gsub("^%s+", ""):gsub("%s+$", "")
+		if q == "" then
+			signIn.Visible = true
+			list.Visible = true
+			searchResultsScroll.Visible = false
+			clearSearchResults()
+			if refreshSidebarSelection then refreshSidebarSelection() end
+			return
+		end
+		signIn.Visible = false
+		list.Visible = false
+		searchResultsScroll.Visible = true
+		clearSearchResults()
+		local light = currentMode == "Light"
+		local primary = light and Color3.fromRGB(37, 40, 48) or Color3.fromRGB(244, 245, 249)
+		local secondary = light and Color3.fromRGB(108, 113, 125) or Color3.fromRGB(160, 165, 180)
+		local accent = (app.Theme and app.Theme.Controls and app.Theme.Controls.Selection and app.Theme.Controls.Selection[1] and app.Theme.Controls.Selection[1].Value) or Color3.fromRGB(0, 122, 255)
+		local tabIcons = {
+			Telemetry = { Bg = Color3.fromRGB(0, 122, 255), Sym = cascade.Symbols.sliderHorizontal3 },
+			Atmosphere = { Bg = Color3.fromRGB(255, 149, 0), Sym = cascade.Symbols.sunMax },
+			Locomotion = { Bg = Color3.fromRGB(52, 199, 89), Sym = cascade.Symbols.gaugeWithDotsNeedle67percent },
+			Appearance = { Bg = Color3.fromRGB(44, 44, 46), Sym = getAsset("appearance.png", "https://raw.githubusercontent.com/x8lua/Staconf/main/assets/appearance.png") },
+			Settings = { Bg = Color3.fromRGB(80, 84, 98), Sym = getAsset("config.png", "https://raw.githubusercontent.com/x8lua/Staconf/main/assets/config.png") },
+			["Users & Groups"] = { Bg = Color3.fromRGB(0, 122, 255), Sym = cascade.Symbols.personCropCircleFill or cascade.Symbols.person2Fill or cascade.Symbols.sliderHorizontal3 },
+		}
+		local lowerQ = q:lower()
+		local matchCount = 0
+		for tabIdx, group in ipairs(searchRegistry) do
+			local matchedSubs = {}
+			local tabMatched = group.TabTitle:lower():find(lowerQ, 1, true) ~= nil
+			for _, item in ipairs(group.Items) do
+				local titleMatched = item.Title:lower():find(lowerQ, 1, true) ~= nil
+				local subMatched = item.Subtitle and item.Subtitle:lower():find(lowerQ, 1, true) ~= nil
+				if tabMatched or titleMatched or subMatched then
+					table.insert(matchedSubs, item)
+				end
+			end
+			if #matchedSubs > 0 then
+				matchCount += 1
+				local groupFrame = Instance.new("Frame")
+				groupFrame.Name = "Group_" .. group.TabTitle
+				groupFrame.Size = UDim2.new(1, 0, 0, 0)
+				groupFrame.AutomaticSize = Enum.AutomaticSize.Y
+				groupFrame.BackgroundTransparency = 1
+				groupFrame.LayoutOrder = tabIdx
+				groupFrame.Parent = searchResultsScroll
+				local gLayout = Instance.new("UIListLayout")
+				gLayout.SortOrder = Enum.SortOrder.LayoutOrder
+				gLayout.Padding = UDim.new(0, 3)
+				gLayout.Parent = groupFrame
+				local headerBtn = Instance.new("TextButton")
+				headerBtn.Name = "Header"
+				headerBtn.Size = UDim2.new(1, 0, 0, 24)
+				headerBtn.BackgroundTransparency = 1
+				headerBtn.Text = ""
+				headerBtn.AutoButtonColor = false
+				headerBtn.LayoutOrder = 1
+				headerBtn.Parent = groupFrame
+				local hCorner = Instance.new("UICorner")
+				hCorner.CornerRadius = UDim.new(0, 6)
+				hCorner.Parent = headerBtn
+				local iconDef = tabIcons[group.TabTitle] or { Bg = Color3.fromRGB(0, 122, 255), Sym = cascade.Symbols.sliderHorizontal3 }
+				local badge = Instance.new("Frame")
+				badge.Name = "Badge"
+				badge.Size = UDim2.fromOffset(20, 20)
+				badge.Position = UDim2.fromOffset(2, 2)
+				badge.BackgroundColor3 = iconDef.Bg
+				badge.BorderSizePixel = 0
+				badge.Parent = headerBtn
+				local bCorner = Instance.new("UICorner")
+				bCorner.CornerRadius = UDim.new(0, 5)
+				bCorner.Parent = badge
+				local sym = Instance.new("ImageLabel")
+				sym.Name = "Symbol"
+				sym.BackgroundTransparency = 1
+				sym.AnchorPoint = Vector2.new(0.5, 0.5)
+				sym.Position = UDim2.fromScale(0.5, 0.5)
+				sym.Size = UDim2.fromOffset(13, 13)
+				sym.Image = iconDef.Sym
+				sym.ImageColor3 = Color3.new(1, 1, 1)
+				sym.Parent = badge
+				local headerTitle = Instance.new("TextLabel")
+				headerTitle.Name = "Title"
+				headerTitle.BackgroundTransparency = 1
+				headerTitle.Position = UDim2.new(0, 28, 0, 0)
+				headerTitle.Size = UDim2.new(1, -30, 1, 0)
+				headerTitle.FontFace = staconfFont(Enum.FontWeight.SemiBold)
+				headerTitle.TextSize = 14
+				headerTitle.TextColor3 = primary
+				headerTitle.TextXAlignment = Enum.TextXAlignment.Left
+				headerTitle.RichText = true
+				headerTitle.Text = highlightText(group.TabTitle, lowerQ, primary, accent)
+				headerTitle.Parent = headerBtn
+				headerBtn.MouseEnter:Connect(function()
+					headerBtn.BackgroundColor3 = light and Color3.fromRGB(220, 222, 228) or Color3.fromRGB(50, 54, 68)
+					headerBtn.BackgroundTransparency = 0.5
+				end)
+				headerBtn.MouseLeave:Connect(function()
+					headerBtn.BackgroundTransparency = 1
+				end)
+				headerBtn.Activated:Connect(function()
+					if group.TabObj then
+						group.TabObj.Selected = true
+						if window.addToHistory then window.addToHistory(group.TabObj.__container) end
+						if group.TabObj == accountTab and refreshAccountPage then
+							task.defer(refreshAccountPage)
+						end
+					end
+				end)
+				for itemIdx, item in ipairs(matchedSubs) do
+					local itemBtn = Instance.new("TextButton")
+					itemBtn.Name = "Item_" .. itemIdx
+					itemBtn.Size = UDim2.new(1, 0, 0, 24)
+					itemBtn.BackgroundTransparency = 1
+					itemBtn.Text = ""
+					itemBtn.AutoButtonColor = false
+					itemBtn.LayoutOrder = itemIdx + 1
+					itemBtn.Parent = groupFrame
+					local iCorner = Instance.new("UICorner")
+					iCorner.CornerRadius = UDim.new(0, 5)
+					iCorner.Parent = itemBtn
+					local itemLabel = Instance.new("TextLabel")
+					itemLabel.Name = "Label"
+					itemLabel.BackgroundTransparency = 1
+					itemLabel.Position = UDim2.new(0, 24, 0, 0)
+					itemLabel.Size = UDim2.new(1, -26, 1, 0)
+					itemLabel.FontFace = staconfFont(Enum.FontWeight.Medium)
+					itemLabel.TextSize = 13
+					itemLabel.TextColor3 = secondary
+					itemLabel.TextXAlignment = Enum.TextXAlignment.Left
+					itemLabel.TextTruncate = Enum.TextTruncate.AtEnd
+					itemLabel.RichText = true
+					itemLabel.Text = highlightText(item.Title, lowerQ, secondary, accent)
+					itemLabel.Parent = itemBtn
+					itemBtn.MouseEnter:Connect(function()
+						itemBtn.BackgroundColor3 = light and Color3.fromRGB(224, 226, 232) or Color3.fromRGB(48, 52, 65)
+						itemBtn.BackgroundTransparency = 0.5
+						itemLabel.TextColor3 = primary
+					end)
+					itemBtn.MouseLeave:Connect(function()
+						itemBtn.BackgroundTransparency = 1
+						itemLabel.TextColor3 = secondary
+					end)
+					itemBtn.Activated:Connect(function()
+						if group.TabObj then
+							group.TabObj.Selected = true
+							if window.addToHistory then window.addToHistory(group.TabObj.__container) end
+							if group.TabObj == accountTab and refreshAccountPage then
+								task.defer(refreshAccountPage)
+							elseif item.Section then
+								task.defer(function()
+									scrollMainTabToSection(item.Section)
+								end)
+							end
+						end
+					end)
+				end
+			end
+		end
+		if matchCount == 0 then
+			local noResult = Instance.new("TextLabel")
+			noResult.Name = "NoResults"
+			noResult.Size = UDim2.new(1, 0, 0, 40)
+			noResult.BackgroundTransparency = 1
+			noResult.FontFace = staconfFont(Enum.FontWeight.Regular)
+			noResult.TextSize = 13
+			noResult.TextColor3 = secondary
+			noResult.TextXAlignment = Enum.TextXAlignment.Center
+			noResult.Text = "No Results Found"
+			noResult.Parent = searchResultsScroll
+		end
+	end
+	chromeConnect(searchField:GetPropertyChangedSignal("Text"), function()
+		updateSidebarSearch(searchField.Text)
+	end)
+	local refreshing = false
+	refreshSidebarChrome = function()
+		if refreshing or not body.Parent then return end
+		refreshing = true
+		local light = currentMode == "Light"
+		body.BackgroundTransparency = 1
+		sidebar.BackgroundTransparency = hasWindowGlass and (light and 0.10 or 0.135) or 0
+		sidebar.BackgroundColor3 = light and Color3.fromRGB(236, 239, 244) or Color3.fromRGB(24, 28, 40)
+		content.BackgroundTransparency = hasWindowGlass and (light and 0.08 or 0.1575) or 0
+		content.BackgroundColor3 = light and Color3.fromRGB(249, 250, 252) or Color3.fromRGB(17, 20, 30)
+		searchBody.BackgroundColor3 = light and Color3.fromRGB(247, 248, 250) or Color3.fromRGB(43, 46, 57)
+		searchBody.BackgroundTransparency = 0
+		avatar.BackgroundColor3 = light and Color3.fromRGB(173, 179, 188) or Color3.fromRGB(106, 114, 130)
+		title.TextColor3 = light and Color3.fromRGB(37, 40, 48) or Color3.fromRGB(244, 245, 249)
+		subtitle.TextColor3 = light and Color3.fromRGB(108, 113, 125) or Color3.fromRGB(169, 174, 189)
+		alignContent()
+		if searchResultsScroll.Visible then
+			updateSidebarSearch(searchField.Text)
+		end
+		refreshing = false
+	end
+	for _, object in ipairs({body, sidebar, content, searchBody}) do
+		chromeConnect(object:GetPropertyChangedSignal("BackgroundTransparency"), function()
+			if refreshSidebarChrome then refreshSidebarChrome() end
+		end)
+		chromeConnect(object:GetPropertyChangedSignal("BackgroundColor3"), function()
+			if refreshSidebarChrome then refreshSidebarChrome() end
+		end)
+	end
+	refreshSidebarChrome()
+	chromeConnect(body.Destroying, function()
+		for _,connection in ipairs(chromeConnections) do connection:Disconnect() end
+		table.clear(chromeConnections)
+		refreshSidebarChrome = nil
+	end)
+end
+local function applyModernVisuals(targetGui)
+	currentStacOnfGui = targetGui
+	local function updateVisual(obj)
+		if not obj.Parent then return end
+		if obj:IsA("TextLabel") and (obj.Name == "Title" or obj.Name == "Subtitle") and obj.Parent and obj.Parent.Name == "TitleStack" and (not targetGui:FindFirstChild("Sidebar", true) or not obj:IsDescendantOf(targetGui:FindFirstChild("Sidebar", true))) then
+			if obj.Name == "Title" then
+				obj.FontFace = staconfFont(Enum.FontWeight.Medium)
+				if obj.TextSize == 15 then obj.TextSize = 16 end
+			end
+			if obj.Name == "Subtitle" and obj.TextSize == 13 then
+				obj.TextSize = 14
+				obj.Size = UDim2.new(obj.Size.X.Scale, obj.Size.X.Offset, obj.Size.Y.Scale, 16)
+			end
+		elseif obj:IsA("UICorner") then
+			local owner = obj.Parent
+			if owner.Name == "Body" then obj.CornerRadius = UDim.new(0, 22)
+			elseif owner.Name == "ContentBody" or owner.Name == "Toolbar" or owner.Name == "Sidebar" then
+				obj.CornerRadius = UDim.new(0, 0)
+			elseif owner.Name == "SidebarItem" then obj.CornerRadius = UDim.new(0, 7) end
+		elseif obj.Name == "Disclosure" or obj.Name == "SectionHeader" then
+			obj.Visible = false
+		elseif obj.Name == "RightEdgeFiller" or obj.Name == "CornerClip" or obj.Name == "CornerClipLeft" or obj.Name == "CornerClipRight" then
+			if obj:IsA("GuiObject") then obj.Visible = false; obj.BackgroundTransparency = 1 end
+		elseif obj.Name == "Body" and obj:IsA("Frame") then
+			obj.BackgroundTransparency = 1
+			createMiddlePanel(targetGui)
+		elseif obj.Name == "Sidebar" and obj:IsA("Frame") then
+			obj.BackgroundTransparency = 1
+		elseif obj.Name == "Toolbar" and obj:IsA("Frame") then
+			obj.BackgroundTransparency = 1
+			local shadow = obj:FindFirstChild("Shadow")
+			if shadow then shadow.Visible = false end
+		elseif obj.Name == "Separator" and obj.Parent.Name == "Body" then
+			obj.Visible = false
+			obj.Size = UDim2.new(0, 0, 1, 0)
+		elseif obj.Name == "ContentBody" and obj:IsA("Frame") then
+			obj.BackgroundTransparency = 1
+		elseif obj.Name == "Toggle" and obj:IsA("Frame") then
+			obj.Size = UDim2.fromOffset(38, 22)
+			local sw = obj:FindFirstChild("Switch")
+			if sw and sw:IsA("ImageButton") then
+				sw.Size = UDim2.fromOffset(38, 22)
+				local knob = sw:FindFirstChild("Knob")
+				if knob and knob:IsA("ImageLabel") then
+					knob.Size = UDim2.fromOffset(20, 18)
+					knob.AnchorPoint = Vector2.new(0, 0.5)
+					knob.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+					knob.BackgroundTransparency = 0
+					knob.ImageTransparency = 1
+					local corner = knob:FindFirstChildOfClass("UICorner") or Instance.new("UICorner", knob)
+					corner.CornerRadius = UDim.new(0, 9)
+					local stroke = knob:FindFirstChildOfClass("UIStroke") or Instance.new("UIStroke", knob)
+					stroke.Thickness = 1
+					stroke.Color = Color3.fromRGB(0, 0, 0)
+					stroke.Transparency = 0.88
+					local fx = knob:FindFirstChild("Effects")
+					if fx then fx.Visible = false end
+					if not knob:GetAttribute("StacOnfMotion") then
+						knob:SetAttribute("StacOnfMotion", true)
+						local visual = knob:Clone()
+						visual.Name = "AnimatedKnob"
+						visual.Visible = true
+						visual.Parent = sw
+						knob.Visible = false
+						local function updatePos()
+							local progress = math.clamp((knob.Position.X.Offset - 1) / 12, 0, 1)
+							visual.Position = UDim2.new(0, 2 + 14 * progress, 0.5, 0)
+						end
+						chromeConnect(knob:GetPropertyChangedSignal("Position"), updatePos)
+						updatePos()
+					end
+				end
+			end
+		elseif obj.Name == "Slider" and obj:IsA("ImageLabel") then
+			obj.Size = UDim2.fromOffset(150, 7)
+			local trackCorner = obj:FindFirstChildOfClass("UICorner") or Instance.new("UICorner", obj)
+			trackCorner.CornerRadius = UDim.new(0, 4)
+			local fill = obj:FindFirstChild("Fill")
+			if fill then
+				local fillCorner = fill:FindFirstChildOfClass("UICorner") or Instance.new("UICorner", fill)
+				fillCorner.CornerRadius = UDim.new(0, 4)
+				local thumb = fill:FindFirstChild("Thumb")
+				if thumb then
+					thumb.Size = UDim2.fromOffset(14, 19)
+					thumb.AnchorPoint = Vector2.new(0.5, 0.5)
+					thumb.Position = UDim2.new(1, 0, 0.5, 0)
+					thumb.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+					thumb.BackgroundTransparency = thumb:GetAttribute("StacOnfMotion") and 1 or 0
+					local thumbCorner = thumb:FindFirstChildOfClass("UICorner") or Instance.new("UICorner", thumb)
+					thumbCorner.CornerRadius = UDim.new(0, 7)
+					local stroke = thumb:FindFirstChildOfClass("UIStroke") or Instance.new("UIStroke", thumb)
+					stroke.Thickness = 1
+					stroke.Color = Color3.fromRGB(0, 0, 0)
+					stroke.Transparency = 0.82
+					local bg = thumb:FindFirstChild("Background")
+					if bg then bg.Visible = false end
+					local fx = thumb:FindFirstChild("ThumbEffects")
+					if fx then fx.Visible = false end
+					if not thumb:GetAttribute("StacOnfMotion") then
+						thumb:SetAttribute("StacOnfMotion", true)
+						local visual = Instance.new("Frame")
+						visual.Name = "AnimatedThumb"
+						visual.Size = UDim2.fromScale(1, 1)
+						visual.AnchorPoint = Vector2.new(0.5, 0.5)
+						visual.Position = UDim2.fromScale(0.5, 0.5)
+						visual.BackgroundColor3 = Color3.new(1, 1, 1)
+						visual.BorderSizePixel = 0
+						visual.ZIndex = thumb.ZIndex
+						thumbCorner:Clone().Parent = visual
+						stroke:Clone().Parent = visual
+						visual.Parent = thumb
+						thumb.BackgroundTransparency = 1
+						stroke.Enabled = false
+						local scale = Instance.new("UIScale")
+						scale.Name = "InteractionScale"
+						scale.Parent = visual
+						local activeTween
+						local dragging = false
+						local hovering = false
+						local function animate()
+							if activeTween then activeTween:Cancel(); activeTween:Destroy() end
+							activeTween = tweenService:Create(scale, TweenInfo.new(0.18, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {
+								Scale = dragging and 1.24 or (hovering and 1.1 or 1),
+							})
+							activeTween:Play()
+						end
+						chromeConnect(thumb.MouseEnter, function() hovering = true; animate() end)
+						chromeConnect(thumb.MouseLeave, function() hovering = false; animate() end)
+						local dragger = thumb:FindFirstChildOfClass("UIDragDetector")
+						if dragger then
+							chromeConnect(dragger.DragStart, function() dragging = true; animate() end)
+							chromeConnect(dragger.DragEnd, function() dragging = false; animate() end)
+						end
+						chromeConnect(thumb.Destroying, function()
+							if activeTween then activeTween:Cancel(); activeTween:Destroy(); activeTween = nil end
+						end)
+					end
+				end
+			end
+		elseif obj.Name == "SidebarItem" and (obj:IsA("TextButton") or obj:IsA("Frame")) then
+			obj.Size = UDim2.new(1, 0, 0, userInputService.TouchEnabled and 44 or 32)
+			chromeConnect(obj:GetPropertyChangedSignal("BackgroundTransparency"), function()
+				if refreshSidebarSelection then task.defer(refreshSidebarSelection) end
+			end)
+			local leading = obj:FindFirstChild("Leading")
+			local titleObj = leading and leading:FindFirstChild("Title")
+			local badge = leading and leading:FindFirstChild("BadgeBackground")
+			local sym = leading and (leading:FindFirstChild("Symbol") or (badge and badge:FindFirstChild("Symbol")))
+			if titleObj then
+				titleObj.FontFace = Font.new(titleObj.FontFace.Family, Enum.FontWeight.SemiBold)
+				titleObj.TextSize = 15
+				titleObj.Size = UDim2.new(1, -30, 0, 24)
+				leading.Size = UDim2.new(1, 0, 0, 24)
+				leading.AutomaticSize = Enum.AutomaticSize.None
+				local layout = leading:FindFirstChildOfClass("UIListLayout")
+				if layout then layout.Padding = UDim.new(0, 8); layout.VerticalAlignment = Enum.VerticalAlignment.Center end
+				local trailing = obj:FindFirstChild("Trailing")
+				if trailing then trailing.Visible = false end
+			end
+			if sym and titleObj then
+				local colors = {Telemetry=Color3.fromRGB(0,122,255),Atmosphere=Color3.fromRGB(255,149,0),Locomotion=Color3.fromRGB(52,199,89),Appearance=Color3.fromRGB(44,44,46)}
+				if not badge then
+					badge = Instance.new("Frame")
+					badge.Name = "BadgeBackground"
+					badge.Size = UDim2.fromOffset(22, 22)
+					badge.LayoutOrder = 1
+					badge.BorderSizePixel = 0
+					badge.Parent = leading
+					local corner = Instance.new("UICorner")
+					corner.CornerRadius = UDim.new(0, 6)
+					corner.Parent = badge
+					sym.Parent = badge
+				end
+				local fullIcon = titleObj.Text == "Appearance" or titleObj.Text == "Settings"
+				badge.BackgroundColor3 = colors[titleObj.Text] or colors.Telemetry
+				badge.BackgroundTransparency = fullIcon and 1 or 0
+				sym.Size = fullIcon and UDim2.fromScale(1, 1) or UDim2.fromOffset(14, 14)
+				sym.AnchorPoint = Vector2.new(0.5, 0.5)
+				sym.Position = UDim2.fromScale(0.5, 0.5)
+				sym.ImageColor3 = Color3.new(1, 1, 1)
+				if not sym:GetAttribute("StaconfWhiteSymbol") then
+					sym:SetAttribute("StaconfWhiteSymbol", true)
+					chromeConnect(sym:GetPropertyChangedSignal("ImageColor3"), function()
+						if sym.ImageColor3 ~= Color3.new(1, 1, 1) then sym.ImageColor3 = Color3.new(1, 1, 1) end
+					end)
+				end
+			end
+		end
+	end
+	for _, descendant in ipairs(targetGui:GetDescendants()) do
+		updateVisual(descendant)
+	end
+	if customFontFamily then
+		for _, descendant in ipairs(targetGui:GetDescendants()) do applyLocalFont(descendant) end
+	end
+	installSidebarChrome(targetGui)
+	local subTabContainers = {}
+	local activeSubTabBtn = nil
+	local function getSelectedMainTabName()
+		for _, item in ipairs(targetGui:GetDescendants()) do
+			if item.Name == "SidebarItem" and item:IsA("GuiObject") and not item:GetAttribute("IsSubTab") then
+				if item.BackgroundTransparency < 0.5 then
+					local title = item:FindFirstChild("Title", true)
+					if title and title:IsA("TextLabel") then return title.Text end
+				end
+			end
+		end
+		return nil
+	end
+	scrollMainTabToSection = function(sectionTitle)
+		local contentList = nil
+		for _, desc in ipairs(targetGui:GetDescendants()) do
+			if desc.Name == "ContentList" and desc:IsA("ScrollingFrame") and desc.Visible then
+				contentList = desc
+				break
+			end
+		end
+		if not contentList then return end
+		local targetSection = nil
+		for _, child in ipairs(contentList:GetChildren()) do
+			if child.Name == "PageSection" and child:IsA("GuiObject") then
+				local title = child:FindFirstChild("Title", true)
+				if title and (title.Text == sectionTitle or title.Text:find(sectionTitle, 1, true)) then
+					targetSection = child
+					break
+				end
+			end
+		end
+		if targetSection then
+			local offset = targetSection.AbsolutePosition.Y - contentList.AbsolutePosition.Y + contentList.CanvasPosition.Y
+			tweenService:Create(contentList, TweenInfo.new(0.3, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {
+				CanvasPosition = Vector2.new(0, math.max(0, offset - 8))
+			}):Play()
+		end
+	end
+	refreshSubTabs = function()
+		if not targetGui.Parent then return end
+		local selectedTab = getSelectedMainTabName()
+		local light = currentMode == "Light"
+		local accent = (app.Theme and app.Theme.Controls and app.Theme.Controls.Selection and app.Theme.Controls.Selection[1] and app.Theme.Controls.Selection[1].Value) or Color3.fromRGB(10, 130, 255)
+		for tabName, container in pairs(subTabContainers) do
+			local isOpen = (tabName == selectedTab)
+			local count = 0
+			for _, child in ipairs(container:GetChildren()) do
+				if child:IsA("TextButton") then count += 1 end
+			end
+			local targetH = isOpen and (count * 28 + 4) or 0
+			tweenService:Create(container, TweenInfo.new(0.24, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {
+				Size = UDim2.new(1, 0, 0, targetH)
+			}):Play()
+			for _, subBtn in ipairs(container:GetChildren()) do
+				if subBtn:IsA("TextButton") then
+					local titleLabel = subBtn:FindFirstChild("Title")
+					local ind = subBtn:FindFirstChild("Indicator")
+					local isSelectedSub = (subBtn == activeSubTabBtn and isOpen)
+					if titleLabel then
+						titleLabel.TextColor3 = isSelectedSub and (light and Color3.fromRGB(24, 26, 32) or Color3.new(1, 1, 1)) or (light and Color3.fromRGB(108, 113, 125) or Color3.fromRGB(160, 165, 180))
+						titleLabel.FontFace = Font.new(titleLabel.FontFace.Family, isSelectedSub and Enum.FontWeight.SemiBold or Enum.FontWeight.Medium)
+					end
+					if ind then
+						ind.BackgroundColor3 = isSelectedSub and accent or (light and Color3.fromRGB(190, 195, 205) or Color3.fromRGB(90, 95, 110))
+						ind.Size = isSelectedSub and UDim2.fromOffset(6, 6) or UDim2.fromOffset(4, 4)
+					end
+					subBtn.BackgroundColor3 = light and Color3.fromRGB(216, 218, 224) or Color3.fromRGB(50, 54, 68)
+					subBtn.BackgroundTransparency = isSelectedSub and (light and 0.45 or 0.6) or 1
+				end
+			end
+		end
+	end
+	local function buildSubTabItem(parentContainer, labelText, sectionTargetName)
+		local subBtn = Instance.new("TextButton")
+		subBtn.Name = "SubTabItem"
+		subBtn.AutoButtonColor = false
+		subBtn.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+		subBtn.BackgroundTransparency = 1
+		subBtn.BorderSizePixel = 0
+		subBtn.Size = UDim2.new(1, 0, 0, 26)
+		subBtn.Text = ""
+		subBtn:SetAttribute("IsSubTab", true)
+		subBtn.Parent = parentContainer
+		local subCorner = Instance.new("UICorner")
+		subCorner.CornerRadius = UDim.new(0, 6)
+		subCorner.Parent = subBtn
+		local indicator = Instance.new("Frame")
+		indicator.Name = "Indicator"
+		indicator.AnchorPoint = Vector2.new(0.5, 0.5)
+		indicator.Position = UDim2.new(0, 15, 0.5, 0)
+		indicator.Size = UDim2.fromOffset(4, 4)
+		indicator.BorderSizePixel = 0
+		indicator.BackgroundColor3 = Color3.fromRGB(120, 125, 140)
+		indicator.Parent = subBtn
+		local indCorner = Instance.new("UICorner")
+		indCorner.CornerRadius = UDim.new(1, 0)
+		indCorner.Parent = indicator
+		local title = Instance.new("TextLabel")
+		title.Name = "Title"
+		title.BackgroundTransparency = 1
+		title.FontFace = staconfFont(Enum.FontWeight.Medium)
+		title.TextSize = 13
+		title.TextColor3 = Color3.fromRGB(160, 165, 180)
+		title.TextXAlignment = Enum.TextXAlignment.Left
+		title.TextYAlignment = Enum.TextYAlignment.Center
+		title.Position = UDim2.new(0, 26, 0, 0)
+		title.Size = UDim2.new(1, -30, 1, 0)
+		title.Text = labelText
+		title.Parent = subBtn
+		subBtn.MouseEnter:Connect(function()
+			if subBtn ~= activeSubTabBtn then
+				subBtn.BackgroundTransparency = currentMode == "Light" and 0.75 or 0.82
+			end
+		end)
+		subBtn.MouseLeave:Connect(function()
+			if subBtn ~= activeSubTabBtn then
+				subBtn.BackgroundTransparency = 1
+			end
+		end)
+		subBtn.Activated:Connect(function()
+			activeSubTabBtn = subBtn
+			refreshSubTabs()
+			scrollMainTabToSection(sectionTargetName)
+		end)
+		return subBtn
+	end
+	local tabSectionsMap = {
+		Combat = {
+			{ Label = "Auto Parry", Target = "Auto Parry" },
+			{ Label = "Advanced Parry", Target = "Advanced Parry Settings" },
+			{ Label = "Attack Desync", Target = "Attack Desync" },
+			{ Label = "Target Tracking", Target = "Target Tracking" },
+			{ Label = "Magnify", Target = "Magnify" },
+			{ Label = "Boxing", Target = "Boxing" },
+			{ Label = "Dodge", Target = "Dodge" },
+			{ Label = "Jin", Target = "Jin" },
+			{ Label = "Ali", Target = "Ali" },
+			{ Label = "Wing Chun", Target = "Wing Chun" },
+			{ Label = "Wrestling", Target = "Wrestling" },
+			{ Label = "Ragepunch", Target = "Ragepunch" },
+		},
+		Main = {
+			{ Label = "Respawn", Target = "Respawn Position" },
+			{ Label = "Camera & Zoom", Target = "Camera & Zoom" },
+			{ Label = "Stamina & Mobility", Target = "Stamina & Mobility" },
+			{ Label = "School Newspaper", Target = "School Newspaper" },
+		},
+		Movement = {
+			{ Label = "Attack Velocity", Target = "Attack Velocity" },
+			{ Label = "Walk & Sprint", Target = "Walk & Sprint Speed" },
+			{ Label = "Evasive & Dash", Target = "Evasive & Dash" },
+		},
+		ESP = {
+			{ Label = "Hitbox & Visuals", Target = "Hitbox & Visuals" },
+			{ Label = "Modern ESP", Target = "Modern ESP" },
+			{ Label = "Target & HUD", Target = "Target & HUD" },
+			{ Label = "Attack Zones", Target = "Attack Zones & Rings" },
+			{ Label = "Legacy ESP", Target = "Legacy ESP" },
+		},
+		Fling = {
+			{ Label = "Stunwalk + Fly", Target = "Stunwalk + Fly Fling" },
+			{ Label = "Target Fling", Target = "Target Fling" },
+		},
+		Fun = {
+			{ Label = "Combo System", Target = "Combo System" },
+			{ Label = "Fake Style", Target = "Fake Style" },
+			{ Label = "SlenderMan", Target = "SlenderMan" },
+			{ Label = "Baby", Target = "Baby" },
+		},
+		Draw = {
+			{ Label = "Blackboard Status", Target = "Blackboard Progress & Status" },
+			{ Label = "Equipment", Target = "Equipment & Preview" },
+			{ Label = "Text & Font", Target = "Text & Font Parameters" },
+			{ Label = "Controls", Target = "Board Drawing Controls" },
+			{ Label = "3D Presets", Target = "3D Board Presets" },
+		},
+		Stand = {
+			{ Label = "Pairing", Target = "Alt Account Pairing" },
+			{ Label = "Commands", Target = "Stand Commands Quick Reference" },
+		},
+		Keybinds = {
+			{ Label = "Combat", Target = "Combat Keybinds" },
+			{ Label = "Downed", Target = "Downed Actions" },
+			{ Label = "Movement", Target = "Movement & General" },
+			{ Label = "Tools", Target = "Larpkuran Tools" },
+		},
+		Roll = {
+			{ Label = "Configuration", Target = "Auto Roll Configuration" },
+			{ Label = "Skip Filter", Target = "Auto Skip Filter" },
+			{ Label = "Roll Actions", Target = "Roll Actions" },
+		},
+		Config = {
+			{ Label = "Profiles", Target = "Configuration Profiles" },
+			{ Label = "Protection", Target = "Protection & Privacy" },
+			{ Label = "Interface", Target = "Interface Customization" },
+			{ Label = "Appearance & Glass", Target = "Appearance & Glass" },
+		},
+		Telemetry = {
+			{ Label = "Performance", Target = "Performance & Display" },
+			{ Label = "Diagnostics", Target = "Diagnostics & Maintenance" },
+		},
+		Atmosphere = {
+			{ Label = "Lighting Engine", Target = "Lighting Engine" },
+		},
+		Locomotion = {
+			{ Label = "Vectors", Target = "Movement Vectors" },
+		},
+		Appearance = {
+			{ Label = "Mode & Palette", Target = "Appearance" },
+			{ Label = "Theme Accent", Target = "Theme" },
+			{ Label = "Window Glass", Target = "Window Effects" },
+		},
+		Settings = {
+			{ Label = "Liquid Glass", Target = "Liquid Glass" },
+			{ Label = "Configuration", Target = "Configuration" },
+			{ Label = "Profiles", Target = "Manage profiles" },
+			{ Label = "Uninstall", Target = "Uninstall" },
+		},
+	}
+	local function setupSubTabs()
+		local sidebarList = nil
+		for _, desc in ipairs(targetGui:GetDescendants()) do
+			if desc.Name == "SidebarList" and desc:IsA("ScrollingFrame") then
+				sidebarList = desc
+				break
+			end
+		end
+		if not sidebarList then return end
+		local tabIndex = 0
+		for _, item in ipairs(sidebarList:GetChildren()) do
+			if item.Name == "SidebarItem" and item:IsA("GuiObject") and not item:GetAttribute("IsSubTab") then
+				item.LayoutOrder = tabIndex * 2
+				local titleObj = item:FindFirstChild("Title", true)
+				local tabName = titleObj and titleObj.Text
+				local subDefs = tabSectionsMap[tabName]
+				if subDefs then
+					local container = subTabContainers[tabName]
+					if not container then
+						container = Instance.new("Frame")
+						container.Name = "SubTabs_" .. tabName
+						container.BackgroundTransparency = 1
+						container.BorderSizePixel = 0
+						container.ClipsDescendants = true
+						container.Size = UDim2.new(1, 0, 0, 0)
+						container.Parent = sidebarList
+						local pad = Instance.new("UIPadding")
+						pad.PaddingLeft = UDim.new(0, 16)
+						pad.PaddingRight = UDim.new(0, 4)
+						pad.PaddingTop = UDim.new(0, 2)
+						pad.PaddingBottom = UDim.new(0, 2)
+						pad.Parent = container
+						local layout = Instance.new("UIListLayout")
+						layout.SortOrder = Enum.SortOrder.LayoutOrder
+						layout.Padding = UDim.new(0, 2)
+						layout.Parent = container
+						for idx, def in ipairs(subDefs) do
+							local subItem = buildSubTabItem(container, def.Label, def.Target)
+							subItem.LayoutOrder = idx
+						end
+						subTabContainers[tabName] = container
+					end
+					container.LayoutOrder = tabIndex * 2 + 1
+				end
+				tabIndex += 1
+			end
+		end
+		refreshSubTabs()
+	end
+	refreshSidebarSelection = function()
+		if not targetGui.Parent then return end
+		setupSubTabs()
+		for _, item in ipairs(targetGui:GetDescendants()) do
+			if item.Name == "SidebarItem" and item:IsA("GuiObject") and not item:GetAttribute("IsSubTab") then
+				local selected = item.BackgroundTransparency < 0.5
+				item.BackgroundColor3 = currentMode == "Light" and Color3.fromRGB(226, 227, 230) or Color3.fromRGB(10, 130, 255)
+				local title = item:FindFirstChild("Title", true)
+				if selected and title and title:IsA("TextLabel") then
+					title.TextColor3 = currentMode == "Light" and Color3.fromRGB(30, 31, 34) or Color3.new(1, 1, 1)
+				end
+			end
+		end
+		refreshSubTabs()
+	end
+	refreshSidebarSelection()
+	chromeConnect(targetGui.DescendantAdded, function(descendant)
+		task.defer(updateVisual, descendant)
+		if customFontFamily then task.defer(applyLocalFont, descendant) end
+	end)
+end
+local function smoothTransition(newMode, newAccentName)
+	local tweenInfo = TweenInfo.new(0.38, Enum.EasingStyle.Quart, Enum.EasingDirection.Out)
+	local targetGui = currentStacOnfGui
+	local snapshot = {}
+	if targetGui then
+		for _, desc in ipairs(targetGui:GetDescendants()) do
+			if desc:IsA("GuiObject") and desc.Name ~= "RightEdgeFiller" and desc.Name ~= "Sidebar" and desc.Name ~= "Body" and desc.Name ~= "ContentBody" and desc.Name ~= "SidebarSearch" then
+				local entry = {
+					BackgroundColor3 = desc.BackgroundColor3,
+					BackgroundTransparency = desc.BackgroundTransparency,
+				}
+				if desc:IsA("TextLabel") or desc:IsA("TextButton") or desc:IsA("TextBox") then
+					entry.TextColor3 = desc.TextColor3
+				end
+				if desc:IsA("ImageLabel") or desc:IsA("ImageButton") then
+					entry.ImageColor3 = desc.ImageColor3
+				end
+				snapshot[desc] = entry
+			end
+		end
+	end
+	if newMode and modeColors[newMode] and newMode ~= currentMode then
+		currentMode = newMode
+		app.Theme = (newMode == "Dark" and cascade.Themes.Dark or cascade.Themes.Light)
+		local cfg = modeColors[newMode]
+		tweenService:Create(gradTopVal, tweenInfo, { Value = cfg.sidebarTop }):Play()
+		tweenService:Create(gradBottomVal, tweenInfo, { Value = cfg.sidebarBottom }):Play()
+		tweenService:Create(gradTopTransVal, tweenInfo, { Value = cfg.sidebarTransTop }):Play()
+		tweenService:Create(gradBottomTransVal, tweenInfo, { Value = cfg.sidebarTransBottom }):Play()
+		if targetGui then
+			local body = targetGui:FindFirstChild("Body", true)
+			if body and body:IsA("Frame") and not refreshSidebarChrome then
+				tweenService:Create(body, tweenInfo, {
+					BackgroundColor3 = cfg.bodyBg,
+					BackgroundTransparency = cfg.bodyTrans,
+				}):Play()
+			end
+			local content = targetGui:FindFirstChild("ContentBody", true)
+			if content and content:IsA("Frame") and not refreshSidebarChrome then
+				tweenService:Create(content, tweenInfo, {
+					BackgroundColor3 = cfg.contentBg,
+					BackgroundTransparency = cfg.contentTrans,
+				}):Play()
+			end
+			local sep = targetGui:FindFirstChild("Separator", true)
+			if sep and sep:IsA("Frame") and not refreshSidebarChrome then
+				tweenService:Create(sep, tweenInfo, {
+					BackgroundColor3 = cfg.separatorBg,
+					BackgroundTransparency = cfg.separatorTrans,
+				}):Play()
+			end
+		end
+	end
+	if newAccentName and cascade.Accents[newAccentName] and newAccentName ~= currentAccent then
+		currentAccent = newAccentName
+		app.Accent = cascade.Accents[newAccentName]
+	end
+	refreshNotificationTheme()
+	if refreshTooltipTheme then refreshTooltipTheme() end
+	if refreshSidebarChrome then refreshSidebarChrome() end
+	if refreshSidebarSelection then refreshSidebarSelection() end
+	if refreshSubTabs then refreshSubTabs() end
+	if refreshMiddlePanel then refreshMiddlePanel() end
+	if refreshAccountPage then refreshAccountPage() end
+	for _, dlg in ipairs(activeDialogs) do
+		if dlg.ApplyTheme then
+			dlg.ApplyTheme(currentMode, true)
+		end
+	end
+	task.defer(function()
+		for desc, oldProps in pairs(snapshot) do
+			if desc and desc.Parent then
+				local props = {}
+				if oldProps.BackgroundColor3 and desc.BackgroundColor3 ~= oldProps.BackgroundColor3 then
+					local target = desc.BackgroundColor3
+					desc.BackgroundColor3 = oldProps.BackgroundColor3
+					props.BackgroundColor3 = target
+				end
+				if oldProps.BackgroundTransparency and math.abs(desc.BackgroundTransparency - oldProps.BackgroundTransparency) > 0.02 then
+					local target = desc.BackgroundTransparency
+					desc.BackgroundTransparency = oldProps.BackgroundTransparency
+					props.BackgroundTransparency = target
+				end
+				if oldProps.TextColor3 and desc:IsA("TextLabel") and desc.TextColor3 ~= oldProps.TextColor3 then
+					local target = desc.TextColor3
+					desc.TextColor3 = oldProps.TextColor3
+					props.TextColor3 = target
+				end
+				if oldProps.ImageColor3 and desc:IsA("ImageLabel") and desc.ImageColor3 ~= oldProps.ImageColor3 then
+					local target = desc.ImageColor3
+					desc.ImageColor3 = oldProps.ImageColor3
+					props.ImageColor3 = target
+				end
+				if next(props) then
+					tweenService:Create(desc, tweenInfo, props):Play()
+				end
+			end
+		end
+	end)
+	if newMode then
+		task.delay(0.42, function()
+			if currentMode == newMode and refreshSidebarSelection then refreshSidebarSelection() end
+		end)
+	end
+end
+_G.StacOnfSmoothTransition = smoothTransition
+onUnload(function()
+	if _G.StacOnfSmoothTransition == smoothTransition then _G.StacOnfSmoothTransition = nil end
+	for _, connection in ipairs(chromeConnections) do connection:Disconnect() end
+	table.clear(chromeConnections)
+end)
+task.defer(function()
+	local targets = {}
+	if typeof(gethui) == "function" then
+		pcall(function()
+			table.insert(targets, gethui())
+		end)
+	end
+	pcall(function()
+		table.insert(targets, coreGui)
+	end)
+	if localPlayer and localPlayer:FindFirstChild("PlayerGui") then
+		table.insert(targets, localPlayer.PlayerGui)
+	end
+	for _, t in ipairs(targets) do
+		local c = t:FindFirstChild("StacOnf")
+		if c then
+			applyModernVisuals(c)
+			break
+		end
+	end
+end)
 local statusUpdaters = {}
 local function addToggle(sec, title, sub, stateObj, onChange, info)
 	local row = titledRow(sec, title, sub, info)
@@ -31821,7 +32755,6 @@ local function addToggle(sec, title, sub, stateObj, onChange, info)
 	end
 	return t
 end
-
 local function addSlider(sec, title, sub, min, max, def, fmt, stateObj, onChange, info)
 	local row = titledRow(sec, title, sub, info)
 	local cur = min
@@ -31854,7 +32787,6 @@ local function addSlider(sec, title, sub, min, max, def, fmt, stateObj, onChange
 	end
 	return s
 end
-
 local function addDropdown(sec, title, sub, options, stateObj, onChange, info)
 	local row = titledRow(sec, title, sub, info)
 	local curVal = options[1]
@@ -31879,7 +32811,6 @@ local function addDropdown(sec, title, sub, options, stateObj, onChange, info)
 	end
 	return drop
 end
-
 local function addTextField(sec, title, sub, ph, stateObj, onChange, info)
 	local row = titledRow(sec, title, sub, info)
 	local cur = ""
@@ -31901,7 +32832,6 @@ local function addTextField(sec, title, sub, ph, stateObj, onChange, info)
 	end
 	return field
 end
-
 local function addKeybind(sec, title, sub, keyName, defKey, onChange, info)
 	local row = titledRow(sec, title, sub, info)
 	local currentStr = (controller.Keybinds and controller.Keybinds[keyName]) or defKey or "None"
@@ -31916,7 +32846,6 @@ local function addKeybind(sec, title, sub, keyName, defKey, onChange, info)
 	})
 	return kField
 end
-
 local function addButton(sec, label, onClick, state, info)
 	local row = titledRow(sec, label, nil, info)
 	return row:Right():Button({
@@ -31927,7 +32856,6 @@ local function addButton(sec, label, onClick, state, info)
 		end,
 	})
 end
-
 local function addStatusCard(sec, title, sub, updateFn)
 	local row = titledRow(sec, title, sub)
 	local lbl = row:Right():Label({
@@ -31943,12 +32871,10 @@ local function addStatusCard(sec, title, sub, updateFn)
 	end
 	return lbl
 end
-
 local combatTab = window:Tab({
 	Title = "Combat",
 	Icon = "rbxassetid://10709791437",
 })
-
 local autoParrySec = combatTab:Section({ Title = "Auto Parry" })
 addToggle(autoParrySec, "Enabled", "Master switch for automated parry defense", enabled)
 addSlider(autoParrySec, "Hold Duration", "Parry guard active hold duration", 0.01, 0.35, 0.08, "%.2f s", holdTime)
@@ -31976,7 +32902,6 @@ addButton(autoParrySec, "Reset Calibration", function()
 	if controller.ResetCalibration then controller.ResetCalibration() end
 end, "Secondary", "Resets calibrated timing offsets back to 0.")
 addKeybind(autoParrySec, "Auto Parry Keybind", "Toggle auto parry on key press", "AutoParry", "PageUp")
-
 local advParrySec = combatTab:Section({ Title = "Advanced Parry Settings" })
 addToggle(advParrySec, "Parries Only To Target", "Only parry attacks from locked target", controller.ParryOnlyTargetState, nil, "Only parry attacks from your currently selected or locked target player, ignoring other players.")
 addToggle(advParrySec, "Block M1 Until Parry", "Block manual clicks while preparing parry", controller.BlockM1UntilParryState, nil, "Blocks your own M1 clicks while preparing or executing a parry.")
@@ -31996,14 +32921,12 @@ addStatusCard(advParrySec, "Parry Telemetry", "Status and trigger count", functi
 	local tc = controller.TriggerCount or 0
 	return string.format("State: %s (%s) | Hits: %d / %d", tostring(s1), tostring(s2), sc, tc)
 end)
-
 local desyncSec = combatTab:Section({ Title = "Attack Desync" })
 addToggle(desyncSec, "Enabled", "Desync animations to disrupt enemy parry", controller.AttackDesyncStates.Enabled)
 addKeybind(desyncSec, "Desync Hotkey", "Keybind to toggle attack desync", "AttackDesync", "None")
 addSlider(desyncSec, "Anim Delay", "Desync animation delay", 0, 1000, 150, "%.0f ms", controller.AttackDesyncStates.Delay)
 addToggle(desyncSec, "Apply to M1", "Desync light attacks", controller.AttackDesyncStates.ApplyM1)
 addToggle(desyncSec, "Apply to M2", "Desync heavy attacks", controller.AttackDesyncStates.ApplyM2)
-
 local trackSec = combatTab:Section({ Title = "Target Tracking" })
 addDropdown(trackSec, "Pivot Mode", "Model pivoting method", {"Character Model", "Camera View"}, controller.TrackingStates.Mode, nil, "Character Model = pivots humanoid root part\\nCamera View = shifts camera view smoothly")
 addToggle(trackSec, "Rapid Threat Switch", "Snap facing angle to new threats", controller.TrackingStates.RapidSwitch)
@@ -32016,17 +32939,14 @@ addStatusCard(trackSec, "Target Lock Telemetry", "Current lock target", function
 	local targetName = controller.FaceAtTarget and controller.FaceAtTarget.Name or "None"
 	return "Current: " .. targetName
 end)
-
 local magnifySec = combatTab:Section({ Title = "Magnify" })
 addToggle(magnifySec, "Enable Magnify", "Magnify camera projection on target", MagnifyEnabledState)
 addSlider(magnifySec, "Magnify Speed", "Zoom tween speed", 1, 50, 15, "%.0f studs/s", MagnifySpeedState)
 addSlider(magnifySec, "Max Distance", "Maximum range to engage magnify", 5, 200, 50, "%.0f studs", MagnifyMaxDistState)
-
 local boxSec = combatTab:Section({ Title = "Boxing" })
 addToggle(boxSec, "Boxing Counter", "Auto counter for boxing style", controller.BoxingStates.Counter)
 addKeybind(boxSec, "Boxing Bind", "Keybind for boxing counter", "Boxing", "None")
 addSlider(boxSec, "Counter Range", "Trigger distance for counter", 2, 25, 12, "%.1f studs", controller.BoxingStates.Range)
-
 local dodgeSec = combatTab:Section({ Title = "Dodge" })
 addToggle(dodgeSec, "Enabled", "Auto dodge using evasive rolls", controller.DodgeStates.Enabled)
 addSlider(dodgeSec, "Dodge Chance", "Probability of dodging incoming attack", 1, 100, 100, "%.0f%%", controller.DodgeStates.Chance)
@@ -32040,7 +32960,6 @@ addToggle(dodgeSec, "Dodge If Cant Parry", "Dodge when parry is on cooldown", co
 addSlider(dodgeSec, "Dodge Distance", "Travel distance for dodge", 1, 15, 4, "%.1f studs", controller.DodgeStates.Distance)
 addSlider(dodgeSec, "Dodge Reaction", "Reaction lead delay", 0, 300, 50, "%.0f ms", controller.DodgeStates.ReactionLeadMs)
 addSlider(dodgeSec, "Dodge CD", "Cooldown between dodge activations", 0, 3000, 500, "%.0f ms", controller.DodgeStates.CooldownMs)
-
 local jinSec = combatTab:Section({ Title = "Jin" })
 addToggle(jinSec, "Show Jin HUD", "Render dedicated Jin stance HUD", controller.JinStates.HUD)
 addToggle(jinSec, "Jin dual-phase M2 warning", "Visual warning for dual-phase strikes", controller.JinStates.Warning)
@@ -32048,7 +32967,6 @@ addToggle(jinSec, "Jin dual-phase guard timing", "Release guard between strike p
 addToggle(jinSec, "Jin M2 after confirmed parry", "Counter with heavy after parry connection", controller.JinStates.Counter)
 addSlider(jinSec, "Jin Counter Range", "Maximum range for Jin counter", 2, 10, 5, "%.1f studs", controller.JinStates.Range)
 addToggle(jinSec, "Jin Black Wings while blocking", "Local cosmetic wing effect", controller.JinStates.Wings)
-
 local aliSec = combatTab:Section({ Title = "Ali" })
 addToggle(aliSec, "Ali Counter", "Enable Ali evasive counter", controller.AliStates.Counter)
 addSlider(aliSec, "Ali Counter Range", "Counter trigger radius", 2, 25, 12, "%.1f studs", controller.AliStates.CounterRange)
@@ -32056,7 +32974,6 @@ addToggle(aliSec, "Ali Evasive Counter", "Trigger counter during evasive window"
 addToggle(aliSec, "Ali Dodge Abuse", "Fire M2 after server-confirmed perfect dodge", controller.AliStates.DodgeAbuse)
 addSlider(aliSec, "Ali Rotation Hold", "Stance rotation hold duration", 50, 2000, 250, "%.0f ms", controller.AliStates.RotationHoldMs)
 addDropdown(aliSec, "Ali M2 Variant", "Attack direction variant", {"Right", "Left"}, controller.AliStates.M2Variant)
-
 local wcSec = combatTab:Section({ Title = "Wing Chun" })
 addToggle(wcSec, "Wing Chun Counter", "Enable Wing Chun stance counter", controller.WingChunStates.Counter)
 addSlider(wcSec, "Wing Chun Counter Range", "Trigger distance for counter", 2, 25, 12, "%.1f studs", controller.WingChunStates.CounterRange)
@@ -32065,7 +32982,6 @@ addToggle(wcSec, "WC Require Live Track", "Require active attack animation until
 addToggle(wcSec, "WC Solo Threat Only", "Disable counter when facing multiple attackers", controller.WingChunStates.SoloThreatOnly)
 addToggle(wcSec, "WC Skip Grabs", "Ignore grab attacks", controller.WingChunStates.SkipGrabs)
 addToggle(wcSec, "Counter Instead Of Dodge", "Prioritize counter over dodge", controller.WingChunStates.CounterInsteadOfDodge)
-
 local wrestSec = combatTab:Section({ Title = "Wrestling" })
 addToggle(wrestSec, "M2 Forward Boost", "Forward acceleration during combat grab", controller.WrestlingM2BoostState)
 addSlider(wrestSec, "M2 Total Distance", "Forward boost displacement", 5, 50, 20, "%.0f studs", controller.WrestlingM2DistanceState)
@@ -32109,7 +33025,6 @@ addButton(wrestSec, "Set to Look Pos", function()
 end, "Secondary")
 addButton(wrestSec, "Preset: Isolate", function() if wPos then wPos:set("-179, -265, -205") end end, "Secondary")
 addButton(wrestSec, "Preset: Farlands", function() if wPos then wPos:set("-1276, -265, 512") end end, "Secondary")
-
 local rageSec = combatTab:Section({ Title = "Ragepunch" })
 addToggle(rageSec, "Enable Ragepunch", "Automated rage assault sequence", controller.RageStates.Enabled)
 addToggle(rageSec, "Auto Grip When Downed", "Execute downed enemies automatically", controller.RageStates.AutoGrip)
@@ -32146,18 +33061,14 @@ addStatusCard(rageSec, "Ragepunch Telemetry", "Execution status and prediction",
 	local st = rageState and rageState.Status or "Standby"
 	return "Status: " .. st .. " | Scale: 1.4"
 end)
-
 local mainTab = window:Tab({
 	Title = "Main",
 	Icon = "rbxassetid://10734950309",
 })
-
 local respawnSec = mainTab:Section({ Title = "Respawn Position" })
 addToggle(respawnSec, "Return to death/reset position", "Teleport back to previous location after death", controller.ReturnToDeathPosState)
-
 local camSec = mainTab:Section({ Title = "Camera & Zoom" })
 addSlider(camSec, "Max Zoom Distance", "Extend camera maximum zoom distance", 12, 500, 128, "%.0f studs", controller.MaxZoomDistanceState)
-
 local stamSec = mainTab:Section({ Title = "Stamina & Mobility" })
 addToggle(stamSec, "Inf Stamina", "Allow stamina to dip negative infinitely", runForeverEnabled)
 addToggle(stamSec, "Auto Run", "Infinite continuous sprinting", autoRunEnabled)
@@ -32170,7 +33081,6 @@ local m2UiState = visualState and visualState.M2Cooldown and visualState.M2Coold
 if m2UiState then
 	addToggle(stamSec, "Heavy CD Bar", "Display M2 heavy attack cooldown bar", m2UiState)
 end
-
 local newsSec = mainTab:Section({ Title = "School Newspaper" })
 addToggle(newsSec, "Auto Newspaper (School)", "Automated school newspaper collection", controller.AutoNewspaperState)
 addToggle(newsSec, "Show Newspaper Status HUD", "Render on-screen newspaper progress HUD", controller.AutoNewspaperGuiState)
@@ -32179,19 +33089,16 @@ addStatusCard(newsSec, "Newspaper Task", "Current collector telemetry", function
 	local s2 = controller.AutoNewspaperTaskLine or "Task: None"
 	return s1 .. " | " .. s2
 end)
-
 local moveTab = window:Tab({
 	Title = "Movement",
 	Icon = "rbxassetid://10747373176",
 })
-
 local atkVelSec = moveTab:Section({ Title = "Attack Velocity" })
 addToggle(atkVelSec, "Attack Velocity", "Maintain consistent speed while attacking", attackVelocity.enabledState)
 addSlider(atkVelSec, "Attack Velocity Speed", "Attack movement speed multiplier", 4, 30, 16, "%.0f", attackVelocity.speedState)
 addToggle(atkVelSec, "Speed of Hit", "Override hit stun velocity in CombatConfig", speedOfHit.enabledState)
 addSlider(atkVelSec, "Hit Speed", "Stun velocity impulse", 4, 60, 25, "%.0f", speedOfHit.speedState)
 addKeybind(atkVelSec, "Velocity Hotkey", "Keybind to toggle velocity override", "AttackVelocity", "None")
-
 local speedSec = moveTab:Section({ Title = "Walk & Sprint Speed" })
 if controller.BabySpeedModifierState then
 	addToggle(speedSec, "Enable Speed Modifier", "Modify walking and sprinting speeds", controller.BabySpeedModifierState, function(v)
@@ -32202,7 +33109,6 @@ addKeybind(speedSec, "Speed Modifier Hotkey", "Toggle speed modifier state", "Ba
 if controller.BabyWalkSpeedState then addSlider(speedSec, "Walk Speed", "Base walking pace", 2, 50, 16, "%.0f studs", controller.BabyWalkSpeedState) end
 if controller.BabyRunSpeedState then addSlider(speedSec, "Run Animation Speed", "Playback rate for run animation", 0.5, 5.0, 1.0, "%.2fx", controller.BabyRunSpeedState) end
 if controller.BabySprintSpeedState then addSlider(speedSec, "Sprint Speed", "Sprinting movement velocity", 10, 70, 26, "%.0f studs", controller.BabySprintSpeedState) end
-
 local evasiveSec = moveTab:Section({ Title = "Evasive & Dash" })
 addToggle(evasiveSec, "Custom Evasive CD", "Override evasive dash cooldown (0 = infinite)", controller.EvasiveEnabledState)
 addSlider(evasiveSec, "Evasive Cooldown", "Interval between evasive dashes", 0.0, 15.0, 2.5, "%.1f s", controller.EvasiveCooldownState)
@@ -32210,17 +33116,14 @@ addSlider(evasiveSec, "Dash Distance", "Travel displacement per dash", 6, 120, 2
 addSlider(evasiveSec, "Dash Process Speed", "Animation acceleration multiplier", 0.5, 5.0, 1.0, "%.1fx", controller.EvasiveProcessSpeedState)
 addToggle(evasiveSec, "Outnumbered Evasive", "Break combo hitstun with 1.5x speed dash", controller.OutnumberedEvasiveState)
 addToggle(evasiveSec, "Evade ALL", "Bypass hitstun to evade at all times", controller.EvadeAllState)
-
 local espTab = window:Tab({
 	Title = "ESP",
 	Icon = "rbxassetid://10723346959",
 })
-
 local es = controller.EspStates
 local hitboxSec = espTab:Section({ Title = "Hitbox & Visuals" })
 addSlider(hitboxSec, "Max ESP Distance", "Maximum rendering boundary", 100, 5000, 1000, "%.0f studs", es.MaxDistance)
 addToggle(hitboxSec, "Enable Hitbox Visualizer", "Visualize attack hitboxes in real-time", controller.HitboxVisualizerState)
-
 local modernEspSec = espTab:Section({ Title = "Modern ESP" })
 addToggle(modernEspSec, "Enable Modern ESP", "Master switch for modern ESP", es.Enabled)
 addToggle(modernEspSec, "2D Boxes", "Render 2D bounding boxes", es.Boxes)
@@ -32236,29 +33139,24 @@ addToggle(modernEspSec, "Fighting Style", "Display detected martial arts style",
 addToggle(modernEspSec, "Tracers", "Lines drawn from viewport to player", es.Tracers)
 addToggle(modernEspSec, "Off-Screen Arrows", "Directional perimeter indicators", es.OffScreenArrows)
 addToggle(modernEspSec, "Skeleton / Bones", "Bone joint skeleton overlay", es.Skeleton)
-
 local targetHudSec = espTab:Section({ Title = "Target & HUD" })
 addToggle(targetHudSec, "Yellow Chams on Target", "Highlight locked target with gold chams", es.TargetYellowChams)
 addToggle(targetHudSec, "Show Target HUD", "Display target health and status card", es.TargetHUD)
-
 local attackZonesSec = espTab:Section({ Title = "Attack Zones & Rings" })
 addToggle(attackZonesSec, "Enemy Attack Zone", "Sector turns red when inside strike range", es.AttackZone)
 addToggle(attackZonesSec, "Local Player Defense Ring", "Circumference boundary around self", es.AttackZoneLocalRing)
 addSlider(attackZonesSec, "Attack Range", "Sector radius in studs", 6, 25, 12, "%.0f studs", es.AttackZoneRange)
 addSlider(attackZonesSec, "Attack FOV", "Sector sweep angle in degrees", 60, 180, 120, "%.0f deg", es.AttackZoneFov)
 addSlider(attackZonesSec, "Attack Zone Max Distance", "Maximum range to evaluate sectors", 7, 240, 80, "%.0f studs", es.AttackZoneMaxDistance)
-
 local legacyEspSec = espTab:Section({ Title = "Legacy ESP" })
 addToggle(legacyEspSec, "Enable Legacy ESP", "Fallback lightweight ESP", es.LegacyEnabled)
 addToggle(legacyEspSec, "Chams (Health Color)", "Dynamic health-based hue shifting", es.LegacyChams)
 addToggle(legacyEspSec, "Username", "BillboardGui username label", es.LegacyNames)
 addToggle(legacyEspSec, "Fighting Style", "BillboardGui fighting style label", es.LegacyStyle)
-
 local flingTab = window:Tab({
 	Title = "Fling",
 	Icon = "rbxassetid://10709819149",
 })
-
 local stunFlingSec = flingTab:Section({ Title = "Stunwalk + Fly Fling" })
 addToggle(stunFlingSec, "fling | USE WITH STUNWALK + FLY", "Rotational velocity impulse", flingEnabled)
 addToggle(stunFlingSec, "Disable Fling When Standing Still", "Pause fling while motionless", flingDisableStandingStill)
@@ -32268,7 +33166,6 @@ addSlider(stunFlingSec, "STUNWALK Speed", "Walking pace factor", 0.5, 4.0, 1.5, 
 addToggle(stunFlingSec, "Enable FLY", "Full 3D navigational flight", flyEnabled)
 addSlider(stunFlingSec, "FLY Speed", "Flight velocity factor", 0.5, 4.0, 1.5, "%.1fx", flySpeed)
 addToggle(stunFlingSec, "Butterfly", "Play butterfly animation while airborne", controller.ButterflyAnimState)
-
 local targetFlingSec = flingTab:Section({ Title = "Target Fling" })
 addTextField(targetFlingSec, "Target Query", "Gakuran name, username, or random", "random", targetQuery)
 addToggle(targetFlingSec, "Run Target Fling", "Execute homing fling on selected target", targetFlingEnabled)
@@ -32281,18 +33178,15 @@ addKeybind(targetFlingSec, "Dropkick Hotkey", "Key to trigger dropkick", "Dropki
 addButton(targetFlingSec, "Play Dropkick Animation", function()
 	if playTouchAnimation then playTouchAnimation(true) end
 end, "Secondary")
-
 local funTab = window:Tab({
 	Title = "Fun",
 	Icon = "rbxassetid://10723354433",
 })
-
 local comboSec = funTab:Section({ Title = "Combo System" })
 addToggle(comboSec, "Combo System", "Custom hit feedback and audio grading", comboSystemEnabled)
 addDropdown(comboSec, "Sound Mode", "Combo sound effects pack", {"Default", "Retro", "Anime"}, comboSoundModeState)
 addDropdown(comboSec, "Combo Pitch Mode", "Dynamic pitch scaling", {"Linear", "Exponential", "Static"}, comboPitchModeState)
 addToggle(comboSec, "Display Image", "On-screen hit splash illustration", comboDisplayImageState)
-
 local fakeStyleSec = funTab:Section({ Title = "Fake Style" })
 local fakeStyleOptions = {"N/A"}
 pcall(function()
@@ -32311,7 +33205,6 @@ addStatusCard(fakeStyleSec, "Fake Style Telemetry", "Mapped animations count", f
 	local m = controller.FakeStyleMapped or 0
 	return string.format("Status: %s | Mapped: %d", tostring(s), m)
 end)
-
 local slenderSec = funTab:Section({ Title = "SlenderMan" })
 if controller.SlenderManState then
 	addToggle(slenderSec, "Enable SlenderMan", "Scale character proportions to slender height", controller.SlenderManState, function(v)
@@ -32324,7 +33217,6 @@ end
 addStatusCard(slenderSec, "Slender Status", "Active bone scaler", function()
 	return controller.SlenderManActive and "Active (AlwaysTall)" or "Disabled"
 end)
-
 local babySec = funTab:Section({ Title = "Baby" })
 if controller.BabyState then
 	addToggle(babySec, "Enable Baby", "Scale character proportions to miniature height", controller.BabyState, function(v)
@@ -32341,12 +33233,10 @@ if controller.BabyTripChanceState then addSlider(babySec, "Trip Chance", "Probab
 addStatusCard(babySec, "Baby Status", "Miniature modifier state", function()
 	return controller.BabyActive and "Active (AlwaysShort)" or "Disabled"
 end)
-
 local drawTab = window:Tab({
 	Title = "Draw",
 	Icon = "rbxassetid://10723377759",
 })
-
 local c = controller.Chalk
 local drawProgSec = drawTab:Section({ Title = "Blackboard Progress & Status" })
 addStatusCard(drawProgSec, "Progress Telemetry", "Drawing vector generation", function()
@@ -32355,7 +33245,6 @@ addStatusCard(drawProgSec, "Progress Telemetry", "Drawing vector generation", fu
 	local tl = c.timeLeftState and c.timeLeftState:get() or ""
 	return string.format("%s | %s | %s", tostring(st), tostring(cnt), tostring(tl))
 end)
-
 local drawEquipSec = drawTab:Section({ Title = "Equipment & Preview" })
 addButton(drawEquipSec, "Grab Chalk Tool", function() if c.grabChalkTool then c.grabChalkTool() end end)
 addButton(drawEquipSec, "Grab Eraser Tool", function() if c.grabEraserTool then c.grabEraserTool() end end)
@@ -32365,7 +33254,6 @@ addButton(drawEquipSec, "Toggle 3D Box Preview", function()
 	if c.selectionBox then c.selectionBox.Visible = (not isShown) end
 	if c.boardSg then c.boardSg.Enabled = (not isShown) end
 end, "Secondary")
-
 local drawTextSec = drawTab:Section({ Title = "Text & Font Parameters" })
 addTextField(drawTextSec, "Draw Text", "Message string to draw on board", "Larpkuran", c.textState)
 local fontNames = {}
@@ -32381,7 +33269,6 @@ addSlider(drawTextSec, "Thickness", "Line stroke pixel width", 1, 8, 2, "%.0f px
 addSlider(drawTextSec, "Draw Delay", "Scanline packet delay", 30, 150, 85, "%.0f ms", c.drawDelayState)
 addSlider(drawTextSec, "Stretch X", "Horizontal aspect elongation", 50, 300, 100, "%.0f%%", c.stretchXState)
 addSlider(drawTextSec, "Letter Spacing", "Kerning separation offset", -5, 30, 0, "%.0f px", c.letterSpacingState)
-
 local drawCtrlSec = drawTab:Section({ Title = "Board Drawing Controls" })
 addButton(drawCtrlSec, "Start Drawing", function()
 	if c.autoDrawSmallScanlines then c.autoDrawSmallScanlines(c.thicknessState:get(), c.drawDelayState:get()) end
@@ -32401,7 +33288,6 @@ addButton(drawCtrlSec, "Refresh VPS Preview", function()
 	if c.boxImage then c.boxImage.Visible = true end
 	if c.generateImageFromVPS then c.generateImageFromVPS() end
 end, "Secondary")
-
 local drawPresetSec = drawTab:Section({ Title = "3D Board Presets" })
 addButton(drawPresetSec, "[Center]", function()
 	c.posXState:set(8); c.posYState:set(25); c.widthState:set(84); c.heightState:set(50); c.applyStatesToBox()
@@ -32421,12 +33307,10 @@ end, "Secondary")
 addButton(drawPresetSec, "[Full Board]", function()
 	c.posXState:set(2); c.posYState:set(2); c.widthState:set(96); c.heightState:set(96); c.applyStatesToBox()
 end, "Secondary")
-
 local standTab = window:Tab({
 	Title = "Stand",
 	Icon = "rbxassetid://10723405367",
 })
-
 local standPairSec = standTab:Section({ Title = "Alt Account Pairing" })
 addStatusCard(standPairSec, "Owner Identity", "Main account pairing status", function()
 	return string.format("Owner: @%s | Linked Alts: %d", localPlayer.Name, #(controller.AltUsernames or {}))
@@ -32450,7 +33334,6 @@ addButton(standPairSec, "Copy Stand Loader Script", function()
 	local copy = setclipboard or toclipboard
 	if type(copy) == "function" then pcall(copy, source) end
 end, "Secondary")
-
 local standCmdSec = standTab:Section({ Title = "Stand Commands Quick Reference" })
 addStatusCard(standCmdSec, "Basic Commands", "/s (Summon), /vanish, /hardv, /stealth, /drop, /exit, /rejoin", function()
 	return "/s /vanish /hardv /stealth /cancel /drop /exit /rejoin"
@@ -32461,30 +33344,25 @@ end)
 addStatusCard(standCmdSec, "Movement & Protection", "/wbring, /settp, /tp, /isolate, /block, /save, /defense", function()
 	return "/wbring /settp /tp /isolate /jail /farlands /block /save /defense"
 end)
-
 local kbTab = window:Tab({
 	Title = "Keybinds",
 	Icon = "rbxassetid://10734950309",
 })
-
 local kbCombatSec = kbTab:Section({ Title = "Combat Keybinds" })
 addKeybind(kbCombatSec, "Light Attack", "Standard M1 punch", "LightAttack", "None")
 addKeybind(kbCombatSec, "Heavy Attack", "Guard break M2 attack", "HeavyAttack", "None")
 addKeybind(kbCombatSec, "Block / Parry", "Defensive guard stance", "Block", "F")
 addKeybind(kbCombatSec, "Evasive / Dash", "Quick roll evasive", "Evasive", "Q")
 addKeybind(kbCombatSec, "Equip / Stance", "Toggle combat stance", "Equip", "E")
-
 local kbDownSec = kbTab:Section({ Title = "Downed Actions" })
 addKeybind(kbDownSec, "Carry / Drop", "Carry downed player", "Carry", "V")
 addKeybind(kbDownSec, "Grip / Execute", "Execute downed player", "Grip", "B")
-
 local kbMoveSec = kbTab:Section({ Title = "Movement & General" })
 addKeybind(kbMoveSec, "Sprint", "Sprint activation", "Sprint", "LeftShift")
 addKeybind(kbMoveSec, "Interact", "World interact key", "Interact", "E")
 addKeybind(kbMoveSec, "Emotes Menu", "Emotes wheel toggle", "Emotes", "G")
 addKeybind(kbMoveSec, "Toggle Phone", "Open cell phone", "Phone", "P")
 addKeybind(kbMoveSec, "First Person", "Perspective toggle", "FirstPerson", "None")
-
 local kbToolSec = kbTab:Section({ Title = "Larpkuran Tools" })
 addKeybind(kbToolSec, "Hide UI", "Toggle Staconf UI visibility", "HideUI", "RightControl")
 addKeybind(kbToolSec, "Auto Parry Toggle", "Toggle parry enabled", "AutoParry", "PageUp")
@@ -32495,12 +33373,10 @@ addKeybind(kbToolSec, "Baby Tripping Toggle", "Toggle tripping stumble", "BabyTr
 addButton(kbToolSec, "Reset All to Game Defaults", function()
 	if controller.ResetKeybindsToDefaults then controller.ResetKeybindsToDefaults() end
 end, "Secondary")
-
 local rollTab = window:Tab({
 	Title = "Roll",
 	Icon = "rbxassetid://10723387563",
 })
-
 local ar = controller.AutoRoll
 local rollSetupSec = rollTab:Section({ Title = "Auto Roll Configuration" })
 addDropdown(rollSetupSec, "Stat to Reroll", "Target attribute category", ar.Stats, ar.CurrentStatState)
@@ -32520,7 +33396,6 @@ addToggle(rollSetupSec, "Slow Mode", "Wait after each roll for review", ar.SlowM
 addSlider(rollSetupSec, "Slow Mode Wait", "Seconds to pause for decision", 1, 20, 7, "%.0f s", ar.SlowModeDurationState)
 addToggle(rollSetupSec, "Stop on Legendary+", "Protect legendary and mystery results", ar.StopOnLegendaryState)
 addToggle(rollSetupSec, "Auto Undo", "Automatically rollback non-targets", ar.AutoUndoState)
-
 local rollSkipSec = rollTab:Section({ Title = "Auto Skip Filter" })
 addTextField(rollSkipSec, "Skip Items (comma-separated)", "e.g. Basic, Karate, Polo", "Basic, Karate", ar.SkipItemsState)
 addTextField(rollSkipSec, "Skip Rarities (comma-separated)", "e.g. Common, Uncommon", "Common", ar.SkipRaritiesState)
@@ -32528,7 +33403,6 @@ addToggle(rollSkipSec, "Skip Common", "Ignore common grade", ar.SkipCommonState)
 addToggle(rollSkipSec, "Skip Uncommon", "Ignore uncommon grade", ar.SkipUncommonState)
 addToggle(rollSkipSec, "Skip Rare", "Ignore rare grade", ar.SkipRareState)
 addToggle(rollSkipSec, "Skip Epic", "Ignore epic grade", ar.SkipEpicState)
-
 local rollActionSec = rollTab:Section({ Title = "Roll Actions" })
 addButton(rollActionSec, "Start / Confirm Auto Roll", function()
 	if not ar.Running then
@@ -32550,12 +33424,10 @@ end, "Secondary")
 addButton(rollActionSec, "Decision: UNDO", function()
 	ar.SlowModeDecision = "undo"
 end, "Secondary")
-
 local configTab = window:Tab({
 	Title = "Config",
 	Icon = "rbxassetid://10734950309",
 })
-
 local profSec = configTab:Section({ Title = "Configuration Profiles" })
 local profOpts = #controller.ConfigProfileNames > 0 and controller.ConfigProfileNames or {"(no saved configs)"}
 addDropdown(profSec, "Profile Selection", "Saved configuration slot", profOpts, controller.ConfigProfileIndexState)
@@ -32575,7 +33447,6 @@ end, "Secondary")
 addButton(profSec, "Refresh Configs", function()
 	if controller.RefreshConfigProfiles then controller.RefreshConfigProfiles(true) end
 end, "Secondary")
-
 local secSec = configTab:Section({ Title = "Protection & Privacy" })
 addToggle(secSec, "Anti-Mod", "Protective heuristics against moderators", controller.AntiModState, function(v)
 	if controller.SetAntiMod then controller.SetAntiMod(v) end
@@ -32584,13 +33455,11 @@ addToggle(secSec, "Anonymous Mode", "Mask identity from other users", controller
 	if controller.SetAnonymousMode then controller.SetAnonymousMode(v) end
 end)
 addDropdown(secSec, "Language", "System localization", {"English", "ZH-TW"}, controller.LanguageState)
-
 local hudSec = configTab:Section({ Title = "Interface Customization" })
 addToggle(hudSec, "Hide Health Bar", "Suppress health HUD display", controller.HideHealthBarState)
 addToggle(hudSec, "Hide Stamina Bar", "Suppress stamina HUD display", controller.HideStaminaBarState)
 addToggle(hudSec, "Hide Heavy CD Bar", "Suppress heavy cooldown HUD display", controller.HideHeavyBarState)
 addKeybind(hudSec, "Hide UI Keybind", "Window toggle hotkey", "HideUI", "RightControl")
-
 local appearSec = configTab:Section({ Title = "Appearance & Glass" })
 local glassSlider = titledRow(appearSec, "Glass Strength", "Main window glass distortion effect"):Right():Slider({
 	Minimum = 0,
@@ -32615,7 +33484,122 @@ titledRow(appearSec, "Acrylic Blur", "World glass refraction through sidebar"):R
 addButton(appearSec, "Unload Larpkuran Staconf", function()
 	unloadStacOnf()
 end, "Secondary")
-
+searchRegistry = {
+	{
+		TabTitle = "Combat",
+		TabObj = combatTab,
+		Items = {
+			{ Title = "Auto Parry", Subtitle = "Automated parry detection and execution", Section = "Auto Parry" },
+			{ Title = "Advanced Parry", Subtitle = "Cooldown compensation and curve prediction", Section = "Advanced Parry Settings" },
+			{ Title = "Attack Desync", Subtitle = "Server tick desynchronization and fast swing", Section = "Attack Desync" },
+			{ Title = "Target Tracking", Subtitle = "Look-at angle lock and distance prediction", Section = "Target Tracking" },
+			{ Title = "Magnify", Subtitle = "Hitbox reach and magnification multiplier", Section = "Magnify" },
+			{ Title = "Boxing", Subtitle = "Boxing style combat enhancements", Section = "Boxing" },
+			{ Title = "Dodge", Subtitle = "Automated evasive slide and sidestep", Section = "Dodge" },
+			{ Title = "Jin", Subtitle = "Jin martial style combat overrides", Section = "Jin" },
+			{ Title = "Ali", Subtitle = "Ali shuffle and counter mechanics", Section = "Ali" },
+			{ Title = "Wing Chun", Subtitle = "Chain punch rhythm and deflection", Section = "Wing Chun" },
+			{ Title = "Wrestling", Subtitle = "Grapple distance and takedown assist", Section = "Wrestling" },
+			{ Title = "Ragepunch", Subtitle = "Rage build assist and instant punch", Section = "Ragepunch" },
+		},
+	},
+	{
+		TabTitle = "Main",
+		TabObj = mainTab,
+		Items = {
+			{ Title = "Respawn Position", Subtitle = "Set custom respawn waypoint and death recovery", Section = "Respawn Position" },
+			{ Title = "Camera & Zoom", Subtitle = "Field of view and third-person camera limit", Section = "Camera & Zoom" },
+			{ Title = "Stamina & Mobility", Subtitle = "Infinite stamina bypass and fatigue reduction", Section = "Stamina & Mobility" },
+			{ Title = "School Newspaper", Subtitle = "Game notification and chat announcements", Section = "School Newspaper" },
+		},
+	},
+	{
+		TabTitle = "Movement",
+		TabObj = moveTab,
+		Items = {
+			{ Title = "Attack Velocity", Subtitle = "Lunge speed and directional propulsion", Section = "Attack Velocity" },
+			{ Title = "Walk & Sprint", Subtitle = "WalkSpeed multiplier and sprint momentum", Section = "Walk & Sprint Speed" },
+			{ Title = "Evasive & Dash", Subtitle = "Dash distance multiplier and cooldown removal", Section = "Evasive & Dash" },
+		},
+	},
+	{
+		TabTitle = "ESP",
+		TabObj = espTab,
+		Items = {
+			{ Title = "Hitbox & Visuals", Subtitle = "Character skeleton and box indicators", Section = "Hitbox & Visuals" },
+			{ Title = "Modern ESP", Subtitle = "Distance labels, health bars, and nametags", Section = "Modern ESP" },
+			{ Title = "Target & HUD", Subtitle = "Focused target tracer and health status display", Section = "Target & HUD" },
+			{ Title = "Attack Zones", Subtitle = "Visual reach radius and parry indicator rings", Section = "Attack Zones & Rings" },
+			{ Title = "Legacy ESP", Subtitle = "Compatibility highlight and box outlines", Section = "Legacy ESP" },
+		},
+	},
+	{
+		TabTitle = "Fling",
+		TabObj = flingTab,
+		Items = {
+			{ Title = "Stunwalk + Fly", Subtitle = "Stun physics override and flight mode", Section = "Stunwalk + Fly Fling" },
+			{ Title = "Target Fling", Subtitle = "Rotational momentum transfer on target player", Section = "Target Fling" },
+		},
+	},
+	{
+		TabTitle = "Fun",
+		TabObj = funTab,
+		Items = {
+			{ Title = "Combo System", Subtitle = "Auto chain combos and hit counter overlay", Section = "Combo System" },
+			{ Title = "Fake Style", Subtitle = "Client-side style animation spoofing", Section = "Fake Style" },
+			{ Title = "SlenderMan", Subtitle = "Limb stretching and horror morph effect", Section = "SlenderMan" },
+			{ Title = "Baby", Subtitle = "Miniaturized scale morph and pitch effect", Section = "Baby" },
+		},
+	},
+	{
+		TabTitle = "Draw",
+		TabObj = drawTab,
+		Items = {
+			{ Title = "Blackboard Status", Subtitle = "Drawing queue progress and status feedback", Section = "Blackboard Progress & Status" },
+			{ Title = "Equipment", Subtitle = "Chalk slot selection and tool equipping", Section = "Equipment & Preview" },
+			{ Title = "Text & Font", Subtitle = "Vector text generator font size and kerning", Section = "Text & Font Parameters" },
+			{ Title = "Drawing Controls", Subtitle = "Canvas placement, scale, and render speed", Section = "Board Drawing Controls" },
+			{ Title = "3D Presets", Subtitle = "3D wireframe models and blackboard art", Section = "3D Board Presets" },
+		},
+	},
+	{
+		TabTitle = "Stand",
+		TabObj = standTab,
+		Items = {
+			{ Title = "Pairing", Subtitle = "Main username link and auth token handshake", Section = "Alt Account Pairing" },
+			{ Title = "Stand Commands", Subtitle = "Chat syntax and remote controller reference", Section = "Stand Commands Quick Reference" },
+		},
+	},
+	{
+		TabTitle = "Keybinds",
+		TabObj = kbTab,
+		Items = {
+			{ Title = "Combat Keybinds", Subtitle = "Hotkeys for parry, attack, and defensive skills", Section = "Combat Keybinds" },
+			{ Title = "Downed Actions", Subtitle = "Keybinds for self-revive and grounded actions", Section = "Downed Actions" },
+			{ Title = "Movement Keybinds", Subtitle = "Speed boost, fly, and dash trigger keys", Section = "Movement & General" },
+			{ Title = "Larpkuran Tools", Subtitle = "Utility hotkeys and quick action bindings", Section = "Larpkuran Tools" },
+		},
+	},
+	{
+		TabTitle = "Roll",
+		TabObj = rollTab,
+		Items = {
+			{ Title = "Auto Roll Configuration", Subtitle = "Automated rolling loop and delay timings", Section = "Auto Roll Configuration" },
+			{ Title = "Auto Skip Filter", Subtitle = "Style rarity blacklist and whitelist options", Section = "Auto Skip Filter" },
+			{ Title = "Roll Actions", Subtitle = "Manual trigger and state reset buttons", Section = "Roll Actions" },
+		},
+	},
+	{
+		TabTitle = "Config",
+		TabObj = configTab,
+		Items = {
+			{ Title = "Profiles", Subtitle = "Save, load, and manage setting preset files", Section = "Configuration Profiles" },
+			{ Title = "Protection & Privacy", Subtitle = "Anti-Mod heuristics and anonymous mode", Section = "Protection & Privacy" },
+			{ Title = "Interface Customization", Subtitle = "HUD visibility and UI toggle hotkey", Section = "Interface Customization" },
+			{ Title = "Appearance & Glass", Subtitle = "Liquid glass distortion, blur, and dropshadow", Section = "Appearance & Glass" },
+		},
+	},
+}
 local heartbeatConn = game:GetService("RunService").Heartbeat:Connect(function()
 	if os.clock() % 0.25 < 0.03 then
 		for _, fn in ipairs(statusUpdaters) do
@@ -32624,13 +33608,11 @@ local heartbeatConn = game:GetService("RunService").Heartbeat:Connect(function()
 	end
 end)
 onUnload(function() heartbeatConn:Disconnect() end)
-
 if controller.LarpkuranOpenedState then
 	controller.LarpkuranOpenedState:onChange(function(isOpen)
 		window.Minimized = not isOpen
 	end)
 end
-
 userInputService.InputEnded:Connect(function(input, processed)
 	local kb = controller.Keybinds and controller.Keybinds.HideUI or "RightControl"
 	local okKey, code = pcall(function() return Enum.KeyCode[kb] end)
@@ -32641,11 +33623,9 @@ userInputService.InputEnded:Connect(function(input, processed)
 		end
 	end
 end)
-
 _G.LarpkuranStaconfWindow = window
 _G.LarpkuranController = controller
-
-
+end
 do
     local env = type(getgenv) == "function" and getgenv() or _G
     local requested = env.LarpRole == "Stand" or _G.LarpRole == "Stand"
