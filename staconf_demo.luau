@@ -782,6 +782,9 @@ local function createNotificationCenter(owner, parent)
 end
 
 local notify, refreshNotificationTheme = createNotificationCenter(app.__instance, app.__instance.Parent)
+_G.StaconfNotify = notify
+app.Notify = notify
+window.Notify = notify
 onUnload(function()
 	local parent = app.__instance.Parent
 	local notifications = parent and parent:FindFirstChild("StacOnfNotifications")
