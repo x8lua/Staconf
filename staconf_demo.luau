@@ -1081,7 +1081,7 @@ local function showDialog(options)
 	cardWrapper.ZIndex = 10
 
 	local cardScale = Instance.new("UIScale")
-	cardScale.Scale = 0.92
+	cardScale.Scale = 1.0
 	cardScale.Parent = cardWrapper
 
 	local card = Instance.new("CanvasGroup")
@@ -1340,10 +1340,9 @@ local function showDialog(options)
 		if isClosed then return end
 		isClosed = true
 		if scrim then
-			tweenService:Create(scrim, TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { BackgroundTransparency = 1 }):Play()
+			tweenService:Create(scrim, TweenInfo.new(0.2, Enum.EasingStyle.Linear), { BackgroundTransparency = 1 }):Play()
 		end
-		tweenService:Create(cardScale, TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { Scale = 0.88 }):Play()
-		local fadeOut = tweenService:Create(card, TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { GroupTransparency = 1 })
+		local fadeOut = tweenService:Create(card, TweenInfo.new(0.2, Enum.EasingStyle.Linear), { GroupTransparency = 1 })
 		fadeOut:Play()
 		fadeOut.Completed:Connect(function()
 			dialogContainer:Destroy()
@@ -1582,14 +1581,18 @@ local function showDialog(options)
 	end
 
 	if scrim then
-		tweenService:Create(scrim, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { BackgroundTransparency = isLight and 0.65 or 0.45 }):Play()
+		tweenService:Create(scrim, TweenInfo.new(0.2, Enum.EasingStyle.Linear), { BackgroundTransparency = isLight and 0.65 or 0.45 }):Play()
 	end
-	tweenService:Create(card, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { GroupTransparency = 0 }):Play()
-	local expandTween = tweenService:Create(cardScale, TweenInfo.new(0.5, Enum.EasingStyle.Sine, Enum.EasingDirection.Out), { Scale = 0.97 })
-	expandTween:Play()
-	expandTween.Completed:Connect(function()
+	local fadeIn = tweenService:Create(card, TweenInfo.new(0.2, Enum.EasingStyle.Linear), { GroupTransparency = 0 })
+	fadeIn:Play()
+	fadeIn.Completed:Connect(function()
 		if isClosed then return end
-		tweenService:Create(cardScale, TweenInfo.new(0.25, Enum.EasingStyle.Back, Enum.EasingDirection.In), { Scale = 1 }):Play()
+		local expandTween = tweenService:Create(cardScale, TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { Scale = 1.04 })
+		expandTween:Play()
+		expandTween.Completed:Connect(function()
+			if isClosed then return end
+			tweenService:Create(cardScale, TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.In), { Scale = 1.0 }):Play()
+		end)
 	end)
 
 	return dialogHandle
