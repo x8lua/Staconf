@@ -1065,7 +1065,7 @@ local function showDialog(options)
 		scrim.Parent = dialogContainer
 	end
 
-	local cardWidth = options.Width or 400
+	local cardWidth = options.Width or 300
 
 	local cardWrapper = Instance.new("Frame")
 	cardWrapper.Name = "CardWrapper"
@@ -1084,8 +1084,8 @@ local function showDialog(options)
 	local ambientShadow = Instance.new("ImageLabel")
 	ambientShadow.Name = "AmbientShadow"
 	ambientShadow.AnchorPoint = Vector2.new(0.5, 0.5)
-	ambientShadow.Position = UDim2.new(0.5, 0, 0.5, 8)
-	ambientShadow.Size = UDim2.new(1, 96, 1, 96)
+	ambientShadow.Position = UDim2.new(0.5, 0, 0.5, 6)
+	ambientShadow.Size = UDim2.new(1, 72, 1, 72)
 	ambientShadow.BackgroundTransparency = 1
 	ambientShadow.Image = "rbxassetid://5554236805"
 	ambientShadow.ScaleType = Enum.ScaleType.Slice
@@ -1098,8 +1098,8 @@ local function showDialog(options)
 	local contactShadow = Instance.new("ImageLabel")
 	contactShadow.Name = "ContactShadow"
 	contactShadow.AnchorPoint = Vector2.new(0.5, 0.5)
-	contactShadow.Position = UDim2.new(0.5, 0, 0.5, 3)
-	contactShadow.Size = UDim2.new(1, 48, 1, 48)
+	contactShadow.Position = UDim2.new(0.5, 0, 0.5, 2)
+	contactShadow.Size = UDim2.new(1, 36, 1, 36)
 	contactShadow.BackgroundTransparency = 1
 	contactShadow.Image = "rbxassetid://5554236805"
 	contactShadow.ScaleType = Enum.ScaleType.Slice
@@ -1115,20 +1115,20 @@ local function showDialog(options)
 	card.AutomaticSize = Enum.AutomaticSize.Y
 	card.BorderSizePixel = 0
 	card.ZIndex = 3
-	card.BackgroundColor3 = isLight and Color3.fromRGB(248, 249, 252) or Color3.fromRGB(34, 36, 46)
-	card.BackgroundTransparency = isLight and 0.05 or 0.08
+	card.BackgroundColor3 = isLight and Color3.fromRGB(242, 243, 247) or Color3.fromRGB(34, 37, 47)
+	card.BackgroundTransparency = isLight and 0.48 or 0.32
 	card.Parent = cardWrapper
 
 	local cardCorner = Instance.new("UICorner")
-	cardCorner.CornerRadius = UDim.new(0, 24)
+	cardCorner.CornerRadius = UDim.new(0, 23)
 	cardCorner.Parent = card
 
 	local cardStroke = Instance.new("UIStroke")
 	cardStroke.Name = "Stroke"
-	cardStroke.Thickness = 1.2
+	cardStroke.Thickness = 1
 	cardStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-	cardStroke.Color = isLight and Color3.fromRGB(0, 0, 0) or Color3.fromRGB(255, 255, 255)
-	cardStroke.Transparency = isLight and 0.88 or 0.82
+	cardStroke.Color = isLight and Color3.fromRGB(0, 0, 0) or Color3.fromRGB(235, 242, 255)
+	cardStroke.Transparency = isLight and 0.88 or 0.72
 	cardStroke.Parent = card
 
 	local dg = getDialogGlass()
@@ -1144,13 +1144,13 @@ local function showDialog(options)
 	if options.Help ~= false then
 		helpBtn = Instance.new("TextButton")
 		helpBtn.Name = "HelpButton"
-		helpBtn.Size = UDim2.fromOffset(22, 22)
+		helpBtn.Size = UDim2.fromOffset(18, 18)
 		helpBtn.AnchorPoint = Vector2.new(1, 0)
-		helpBtn.Position = UDim2.new(1, -14, 0, 14)
+		helpBtn.Position = UDim2.new(1, -12, 0, 12)
 		helpBtn.BackgroundColor3 = isLight and Color3.fromRGB(222, 225, 232) or Color3.fromRGB(56, 59, 72)
 		helpBtn.BorderSizePixel = 0
 		helpBtn.Text = "?"
-		helpBtn.TextSize = 13
+		helpBtn.TextSize = 11
 		helpBtn.FontFace = staconfFont(Enum.FontWeight.Bold)
 		helpBtn.TextColor3 = isLight and Color3.fromRGB(120, 124, 135) or Color3.fromRGB(165, 170, 182)
 		local hCorner = Instance.new("UICorner")
@@ -1164,24 +1164,24 @@ local function showDialog(options)
 	end
 
 	local padding = Instance.new("UIPadding")
-	padding.PaddingTop = UDim.new(0, 28)
-	padding.PaddingBottom = UDim.new(0, 24)
-	padding.PaddingLeft = UDim.new(0, 28)
-	padding.PaddingRight = UDim.new(0, 28)
+	padding.PaddingTop = UDim.new(0, 20)
+	padding.PaddingBottom = UDim.new(0, 18)
+	padding.PaddingLeft = UDim.new(0, 20)
+	padding.PaddingRight = UDim.new(0, 20)
 	padding.Parent = card
 
 	local list = Instance.new("UIListLayout")
 	list.FillDirection = Enum.FillDirection.Vertical
 	list.SortOrder = Enum.SortOrder.LayoutOrder
 	list.HorizontalAlignment = Enum.HorizontalAlignment.Center
-	list.Padding = UDim.new(0, 14)
+	list.Padding = UDim.new(0, 10)
 	list.Parent = card
 
 	if options.Icon ~= false then
 		local iconType = options.Icon or "Warning"
 		local iconImg = Instance.new("ImageLabel")
 		iconImg.Name = "Icon"
-		iconImg.Size = UDim2.fromOffset(64, 64)
+		iconImg.Size = UDim2.fromOffset(48, 48)
 		iconImg.BackgroundTransparency = 1
 		iconImg.LayoutOrder = 1
 		iconImg.ZIndex = 12
@@ -1211,11 +1211,11 @@ local function showDialog(options)
 	titleLabel.Size = UDim2.new(1, 0, 0, 0)
 	titleLabel.AutomaticSize = Enum.AutomaticSize.Y
 	titleLabel.FontFace = staconfFont(Enum.FontWeight.Bold)
-	titleLabel.TextSize = 18
-	titleLabel.LineHeight = 1.18
+	titleLabel.TextSize = 14.5
+	titleLabel.LineHeight = 1.15
 	titleLabel.TextWrapped = true
 	titleLabel.TextXAlignment = Enum.TextXAlignment.Center
-	titleLabel.TextColor3 = isLight and Color3.fromRGB(18, 20, 26) or Color3.fromRGB(255, 255, 255)
+	titleLabel.TextColor3 = isLight and Color3.fromRGB(37, 40, 48) or Color3.fromRGB(244, 245, 249)
 	titleLabel.BackgroundTransparency = 1
 	titleLabel.LayoutOrder = 2
 	titleLabel.ZIndex = 12
@@ -1229,11 +1229,11 @@ local function showDialog(options)
 		descLabel.Size = UDim2.new(1, 0, 0, 0)
 		descLabel.AutomaticSize = Enum.AutomaticSize.Y
 		descLabel.FontFace = staconfFont(Enum.FontWeight.Regular)
-		descLabel.TextSize = 15
-		descLabel.LineHeight = 1.25
+		descLabel.TextSize = 12.5
+		descLabel.LineHeight = 1.2
 		descLabel.TextWrapped = true
 		descLabel.TextXAlignment = Enum.TextXAlignment.Center
-		descLabel.TextColor3 = isLight and Color3.fromRGB(65, 70, 82) or Color3.fromRGB(220, 224, 236)
+		descLabel.TextColor3 = isLight and Color3.fromRGB(108, 113, 125) or Color3.fromRGB(169, 174, 189)
 		descLabel.BackgroundTransparency = 1
 		descLabel.LayoutOrder = 3
 		descLabel.ZIndex = 12
@@ -1248,11 +1248,11 @@ local function showDialog(options)
 		footnoteLabel.Size = UDim2.new(1, 0, 0, 0)
 		footnoteLabel.AutomaticSize = Enum.AutomaticSize.Y
 		footnoteLabel.FontFace = staconfFont(Enum.FontWeight.Regular)
-		footnoteLabel.TextSize = 13
+		footnoteLabel.TextSize = 11
 		footnoteLabel.LineHeight = 1.15
 		footnoteLabel.TextWrapped = true
 		footnoteLabel.TextXAlignment = Enum.TextXAlignment.Center
-		footnoteLabel.TextColor3 = isLight and Color3.fromRGB(125, 130, 142) or Color3.fromRGB(150, 155, 170)
+		footnoteLabel.TextColor3 = isLight and Color3.fromRGB(130, 134, 145) or Color3.fromRGB(145, 150, 165)
 		footnoteLabel.BackgroundTransparency = 1
 		footnoteLabel.LayoutOrder = 4
 		footnoteLabel.ZIndex = 12
@@ -1273,36 +1273,36 @@ local function showDialog(options)
 		local iList = Instance.new("UIListLayout")
 		iList.FillDirection = Enum.FillDirection.Vertical
 		iList.SortOrder = Enum.SortOrder.LayoutOrder
-		iList.Padding = UDim.new(0, 10)
+		iList.Padding = UDim.new(0, 8)
 		iList.Parent = inputsFrame
 
 		for idx, inp in ipairs(options.Inputs) do
 			local iCard = Instance.new("Frame")
 			iCard.Name = "Input_" .. tostring(idx)
-			iCard.Size = UDim2.new(1, 0, 0, 36)
-			iCard.BackgroundColor3 = isLight and Color3.fromRGB(235, 237, 244) or Color3.fromRGB(48, 51, 66)
+			iCard.Size = UDim2.new(1, 0, 0, 28)
+			iCard.BackgroundColor3 = isLight and Color3.fromRGB(226, 228, 235) or Color3.fromRGB(42, 45, 58)
 			iCard.BorderSizePixel = 0
 			iCard.ZIndex = 13
 
 			local iCorner = Instance.new("UICorner")
-			iCorner.CornerRadius = UDim.new(0, 9)
+			iCorner.CornerRadius = UDim.new(0, 7)
 			iCorner.Parent = iCard
 
 			local iStroke = Instance.new("UIStroke")
 			iStroke.Thickness = 1
 			iStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-			iStroke.Color = isLight and Color3.fromRGB(205, 208, 218) or Color3.fromRGB(72, 77, 96)
+			iStroke.Color = isLight and Color3.fromRGB(205, 208, 218) or Color3.fromRGB(68, 73, 90)
 			iStroke.Parent = iCard
 
 			local tb = Instance.new("TextBox")
-			tb.Size = UDim2.new(1, -20, 1, 0)
-			tb.Position = UDim2.new(0, 10, 0, 0)
+			tb.Size = UDim2.new(1, -16, 1, 0)
+			tb.Position = UDim2.new(0, 8, 0, 0)
 			tb.BackgroundTransparency = 1
 			tb.Text = inp.Text or ""
 			tb.PlaceholderText = inp.Placeholder or ""
 			tb.FontFace = staconfFont(Enum.FontWeight.Regular)
-			tb.TextSize = 15
-			tb.TextColor3 = isLight and Color3.fromRGB(22, 24, 30) or Color3.fromRGB(250, 250, 255)
+			tb.TextSize = 12.5
+			tb.TextColor3 = isLight and Color3.fromRGB(37, 40, 48) or Color3.fromRGB(244, 245, 249)
 			tb.PlaceholderColor3 = isLight and Color3.fromRGB(138, 142, 155) or Color3.fromRGB(130, 135, 152)
 			tb.TextXAlignment = Enum.TextXAlignment.Left
 			tb.ClearTextOnFocus = false
@@ -1310,11 +1310,11 @@ local function showDialog(options)
 
 			tb.Focused:Connect(function()
 				iStroke.Color = Color3.fromRGB(0, 122, 255)
-				iStroke.Thickness = 2
+				iStroke.Thickness = 1.5
 			end)
 			tb.FocusLost:Connect(function()
 				local curLight = (currentMode == "Light")
-				iStroke.Color = curLight and Color3.fromRGB(205, 208, 218) or Color3.fromRGB(72, 77, 96)
+				iStroke.Color = curLight and Color3.fromRGB(205, 208, 218) or Color3.fromRGB(68, 73, 90)
 				iStroke.Thickness = 1
 			end)
 
@@ -1328,7 +1328,7 @@ local function showDialog(options)
 
 	local btnRow = Instance.new("Frame")
 	btnRow.Name = "ButtonsRow"
-	btnRow.Size = UDim2.new(1, 0, 0, 38)
+	btnRow.Size = UDim2.new(1, 0, 0, 30)
 	btnRow.BackgroundTransparency = 1
 	btnRow.LayoutOrder = 6
 	btnRow.ZIndex = 12
@@ -1386,12 +1386,12 @@ local function showDialog(options)
 			end
 		end
 		setOrTween(card, {
-			BackgroundColor3 = light and Color3.fromRGB(248, 249, 252) or Color3.fromRGB(34, 36, 46),
-			BackgroundTransparency = light and 0.05 or 0.08,
+			BackgroundColor3 = light and Color3.fromRGB(242, 243, 247) or Color3.fromRGB(34, 37, 47),
+			BackgroundTransparency = light and 0.48 or 0.32,
 		})
 		setOrTween(cardStroke, {
-			Color = light and Color3.fromRGB(0, 0, 0) or Color3.fromRGB(255, 255, 255),
-			Transparency = light and 0.88 or 0.82,
+			Color = light and Color3.fromRGB(0, 0, 0) or Color3.fromRGB(235, 242, 255),
+			Transparency = light and 0.88 or 0.72,
 		})
 		setOrTween(ambientShadow, {
 			ImageTransparency = light and 0.65 or 0.45,
@@ -1411,27 +1411,27 @@ local function showDialog(options)
 			})
 		end
 		setOrTween(titleLabel, {
-			TextColor3 = light and Color3.fromRGB(18, 20, 26) or Color3.fromRGB(255, 255, 255),
+			TextColor3 = light and Color3.fromRGB(37, 40, 48) or Color3.fromRGB(244, 245, 249),
 		})
 		if descLabel then
 			setOrTween(descLabel, {
-				TextColor3 = light and Color3.fromRGB(65, 70, 82) or Color3.fromRGB(220, 224, 236),
+				TextColor3 = light and Color3.fromRGB(108, 113, 125) or Color3.fromRGB(169, 174, 189),
 			})
 		end
 		if footnoteLabel then
 			setOrTween(footnoteLabel, {
-				TextColor3 = light and Color3.fromRGB(125, 130, 142) or Color3.fromRGB(150, 155, 170),
+				TextColor3 = light and Color3.fromRGB(130, 134, 145) or Color3.fromRGB(145, 150, 165),
 			})
 		end
 		for _, inpData in ipairs(inputsRegistry) do
 			setOrTween(inpData.card, {
-				BackgroundColor3 = light and Color3.fromRGB(235, 237, 244) or Color3.fromRGB(48, 51, 66),
+				BackgroundColor3 = light and Color3.fromRGB(226, 228, 235) or Color3.fromRGB(42, 45, 58),
 			})
 			setOrTween(inpData.stroke, {
-				Color = light and Color3.fromRGB(205, 208, 218) or Color3.fromRGB(72, 77, 96),
+				Color = light and Color3.fromRGB(205, 208, 218) or Color3.fromRGB(68, 73, 90),
 			})
 			setOrTween(inpData.tb, {
-				TextColor3 = light and Color3.fromRGB(22, 24, 30) or Color3.fromRGB(250, 250, 255),
+				TextColor3 = light and Color3.fromRGB(37, 40, 48) or Color3.fromRGB(244, 245, 249),
 				PlaceholderColor3 = light and Color3.fromRGB(138, 142, 155) or Color3.fromRGB(130, 135, 152),
 			})
 		end
@@ -1477,13 +1477,13 @@ local function showDialog(options)
 		if btnCount == 1 then
 			btn.Size = UDim2.new(1, 0, 1, 0)
 		elseif btnCount == 2 then
-			btn.Size = UDim2.new(0.5, -5, 1, 0)
+			btn.Size = UDim2.new(0.5, -4, 1, 0)
 		else
-			btn.Size = UDim2.new(1 / btnCount, -math.floor(10 * (btnCount - 1) / btnCount), 1, 0)
+			btn.Size = UDim2.new(1 / btnCount, -math.floor(8 * (btnCount - 1) / btnCount), 1, 0)
 		end
 
 		local bCorner = Instance.new("UICorner")
-		bCorner.CornerRadius = UDim.new(0, 10)
+		bCorner.CornerRadius = UDim.new(0, 8)
 		bCorner.Parent = btn
 
 		local isPrimary = (bConf.Style == "Primary")
@@ -1494,17 +1494,17 @@ local function showDialog(options)
 			btn.BackgroundColor3 = Color3.fromRGB(0, 122, 255)
 			btn.TextColor3 = Color3.fromRGB(255, 255, 255)
 			btn.FontFace = staconfFont(Enum.FontWeight.SemiBold)
-			btn.TextSize = 15
+			btn.TextSize = 13.5
 		elseif isDestructive then
 			btn.BackgroundColor3 = Color3.fromRGB(255, 59, 48)
 			btn.TextColor3 = Color3.fromRGB(255, 255, 255)
 			btn.FontFace = staconfFont(Enum.FontWeight.SemiBold)
-			btn.TextSize = 15
+			btn.TextSize = 13.5
 		else
 			btn.BackgroundColor3 = isLight and Color3.fromRGB(226, 228, 236) or Color3.fromRGB(56, 59, 72)
 			btn.TextColor3 = isLight and Color3.fromRGB(35, 38, 45) or Color3.fromRGB(240, 242, 248)
 			btn.FontFace = staconfFont(Enum.FontWeight.Regular)
-			btn.TextSize = 15
+			btn.TextSize = 13.5
 
 			bStroke = Instance.new("UIStroke")
 			bStroke.Thickness = 1
