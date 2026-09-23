@@ -983,10 +983,10 @@ local activeDialogs = {}
 local function getDialogGui()
 	if dialogGui and dialogGui.Parent then return dialogGui end
 	local targets = {}
+	pcall(function() table.insert(targets, coreGui) end)
 	if typeof(gethui) == "function" then
 		pcall(function() table.insert(targets, gethui()) end)
 	end
-	pcall(function() table.insert(targets, coreGui) end)
 	if localPlayer and localPlayer:FindFirstChild("PlayerGui") then
 		table.insert(targets, localPlayer.PlayerGui)
 	end
