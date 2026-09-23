@@ -1081,7 +1081,7 @@ local function showDialog(options)
 	cardWrapper.ZIndex = 10
 
 	local cardScale = Instance.new("UIScale")
-	cardScale.Scale = 1.0
+	cardScale.Scale = 0.88
 	cardScale.Parent = cardWrapper
 
 	local card = Instance.new("CanvasGroup")
@@ -1305,7 +1305,7 @@ local function showDialog(options)
 
 	local btnRow = Instance.new("Frame")
 	btnRow.Name = "ButtonsRow"
-	btnRow.Size = UDim2.new(1, 0, 0, 30)
+	btnRow.Size = UDim2.new(1, 0, 0, 36)
 	btnRow.BackgroundTransparency = 1
 	btnRow.LayoutOrder = 6
 	btnRow.ZIndex = 12
@@ -1342,6 +1342,7 @@ local function showDialog(options)
 		if scrim then
 			tweenService:Create(scrim, TweenInfo.new(0.2, Enum.EasingStyle.Linear), { BackgroundTransparency = 1 }):Play()
 		end
+		tweenService:Create(cardScale, TweenInfo.new(0.2, Enum.EasingStyle.Linear), { Scale = 0.88 }):Play()
 		local fadeOut = tweenService:Create(card, TweenInfo.new(0.2, Enum.EasingStyle.Linear), { GroupTransparency = 1 })
 		fadeOut:Play()
 		fadeOut.Completed:Connect(function()
@@ -1477,17 +1478,17 @@ local function showDialog(options)
 			btn.BackgroundColor3 = Color3.fromRGB(0, 122, 255)
 			btn.TextColor3 = Color3.fromRGB(255, 255, 255)
 			btn.FontFace = staconfFont(Enum.FontWeight.Medium)
-			btn.TextSize = 13.5
+			btn.TextSize = 17
 		elseif isDestructive then
 			btn.BackgroundColor3 = Color3.fromRGB(255, 59, 48)
 			btn.TextColor3 = Color3.fromRGB(255, 255, 255)
 			btn.FontFace = staconfFont(Enum.FontWeight.Medium)
-			btn.TextSize = 13.5
+			btn.TextSize = 17
 		else
 			btn.BackgroundColor3 = isLight and Color3.fromRGB(226, 228, 236) or Color3.fromRGB(56, 59, 72)
 			btn.TextColor3 = isLight and Color3.fromRGB(35, 38, 45) or Color3.fromRGB(240, 242, 248)
 			btn.FontFace = staconfFont(Enum.FontWeight.Medium)
-			btn.TextSize = 13.5
+			btn.TextSize = 17
 
 			bStroke = Instance.new("UIStroke")
 			bStroke.Thickness = 1
@@ -1584,14 +1585,16 @@ local function showDialog(options)
 		tweenService:Create(scrim, TweenInfo.new(0.2, Enum.EasingStyle.Linear), { BackgroundTransparency = isLight and 0.65 or 0.45 }):Play()
 	end
 	local fadeIn = tweenService:Create(card, TweenInfo.new(0.2, Enum.EasingStyle.Linear), { GroupTransparency = 0 })
+	local expandMain = tweenService:Create(cardScale, TweenInfo.new(0.2, Enum.EasingStyle.Linear), { Scale = 1.0 })
 	fadeIn:Play()
+	expandMain:Play()
 	fadeIn.Completed:Connect(function()
 		if isClosed then return end
-		local expandTween = tweenService:Create(cardScale, TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { Scale = 1.04 })
+		local expandTween = tweenService:Create(cardScale, TweenInfo.new(0.1, Enum.EasingStyle.Linear), { Scale = 1.05 })
 		expandTween:Play()
 		expandTween.Completed:Connect(function()
 			if isClosed then return end
-			tweenService:Create(cardScale, TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.In), { Scale = 1.0 }):Play()
+			tweenService:Create(cardScale, TweenInfo.new(0.1, Enum.EasingStyle.Linear), { Scale = 1.0 }):Play()
 		end)
 	end)
 
