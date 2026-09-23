@@ -185,11 +185,11 @@ local function titledRow(parent, title, subtitle, info)
 				local infoBtn = Instance.new("ImageButton")
 				infoBtn.Name = "InfoIcon"
 				infoBtn.BackgroundTransparency = 1
-				infoBtn.Size = UDim2.fromOffset(14, 14)
+				infoBtn.Size = UDim2.fromOffset(16, 16)
 				infoBtn.LayoutOrder = 2
 				local infoAsset = getAsset("info.png", "https://raw.githubusercontent.com/x8lua/Staconf/main/assets/info.png")
 				infoBtn.Image = infoAsset or "rbxassetid://10723415903"
-				infoBtn.ImageColor3 = currentMode == "Light" and Color3.fromRGB(130, 135, 148) or Color3.fromRGB(160, 165, 180)
+				infoBtn.ImageColor3 = currentMode == "Light" and Color3.fromRGB(100, 106, 122) or Color3.fromRGB(205, 210, 225)
 				infoBtn.Parent = header
 
 				header.Parent = stack
@@ -199,7 +199,7 @@ local function titledRow(parent, title, subtitle, info)
 					infoBtn.ImageColor3 = sel and sel.Value or Color3.fromRGB(59, 130, 246)
 				end)
 				infoBtn.MouseLeave:Connect(function()
-					infoBtn.ImageColor3 = currentMode == "Light" and Color3.fromRGB(130, 135, 148) or Color3.fromRGB(160, 165, 180)
+					infoBtn.ImageColor3 = currentMode == "Light" and Color3.fromRGB(100, 106, 122) or Color3.fromRGB(205, 210, 225)
 				end)
 
 				if tooltipManager then
