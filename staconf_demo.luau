@@ -2337,7 +2337,13 @@ local refreshSidebarChrome
 local refreshSidebarSelection
 local refreshSubTabs
 local refreshAccountPage
+local overviewTab
+local lightingTab
+local moveTab
+local appearanceTab
+local settingsTab
 local accountTab
+local searchRegistry = {}
 local chromeConnections = {}
 local function chromeConnect(signal, callback)
 	local connection = signal:Connect(callback)
@@ -2392,8 +2398,13 @@ local function crispPopUpButton(parent, options)
 		table.insert(connections, entry[1]:GetPropertyChangedSignal(entry[2]):Connect(anchorMenu))
 	end
 	local visibility = group:GetPropertyChangedSignal("GroupTransparency"):Connect(function()
-		layer.Visible = control.Expanded and group.GroupTransparency < 1
-		if layer.Visible then anchorMenu() end
+		local trans = group.GroupTransparency
+		if trans < 0.999 then
+			layer.Visible = true
+			anchorMenu()
+		elseif not control.Expanded then
+			layer.Visible = false
+		end
 	end)
 	anchorMenu()
 	local destroyed
@@ -2563,6 +2574,279 @@ local function installSidebarChrome(targetGui)
 	chromeConnect(raw(structures.Cornering):GetPropertyChangedSignal("CornerRadius"), function()
 		corner.CornerRadius = window.Maximized and UDim.new(0, 0) or UDim.new(0, 22)
 	end)
+	local searchResultsScroll = Instance.new("ScrollingFrame")
+	searchResultsScroll.Name = "SidebarSearchResults"
+	searchResultsScroll.BackgroundTransparency = 1
+	searchResultsScroll.BorderSizePixel = 0
+	searchResultsScroll.ScrollBarThickness = 2
+	searchResultsScroll.ScrollBarImageTransparency = 0.5
+	searchResultsScroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
+	searchResultsScroll.CanvasSize = UDim2.new(0, 0, 0, 0)
+	searchResultsScroll.Position = UDim2.fromOffset(0, 94)
+	searchResultsScroll.Size = UDim2.new(1, 0, 1, -102)
+	searchResultsScroll.Visible = false
+	searchResultsScroll.Parent = margins
+
+	local srlPad = Instance.new("UIPadding")
+	srlPad.PaddingLeft = UDim.new(0, 12)
+	srlPad.PaddingRight = UDim.new(0, 12)
+	srlPad.PaddingTop = UDim.new(0, 6)
+	srlPad.PaddingBottom = UDim.new(0, 12)
+	srlPad.Parent = searchResultsScroll
+
+	local srlLayout = Instance.new("UIListLayout")
+	srlLayout.SortOrder = Enum.SortOrder.LayoutOrder
+	srlLayout.Padding = UDim.new(0, 10)
+	srlLayout.Parent = searchResultsScroll
+
+	local searchClearBtn = Instance.new("TextButton")
+	searchClearBtn.Name = "SearchClear"
+	searchClearBtn.Size = UDim2.fromOffset(18, 18)
+	searchClearBtn.AnchorPoint = Vector2.new(1, 0.5)
+	searchClearBtn.Position = UDim2.new(1, -6, 0.5, 0)
+	searchClearBtn.BackgroundTransparency = 1
+	searchClearBtn.Text = ""
+	searchClearBtn.Visible = false
+	searchClearBtn.ZIndex = 5
+	searchClearBtn.Parent = searchBody
+
+	local clearCircle = Instance.new("Frame")
+	clearCircle.Size = UDim2.fromOffset(14, 14)
+	clearCircle.AnchorPoint = Vector2.new(0.5, 0.5)
+	clearCircle.Position = UDim2.fromScale(0.5, 0.5)
+	clearCircle.BackgroundColor3 = Color3.fromRGB(140, 145, 160)
+	clearCircle.BorderSizePixel = 0
+	clearCircle.Parent = searchClearBtn
+	local ccCorner = Instance.new("UICorner")
+	ccCorner.CornerRadius = UDim.new(1, 0)
+	ccCorner.Parent = clearCircle
+
+	local clearCross = Instance.new("TextLabel")
+	clearCross.Size = UDim2.fromScale(1, 1)
+	clearCross.BackgroundTransparency = 1
+	clearCross.Text = "×"
+	clearCross.TextSize = 12
+	clearCross.FontFace = staconfFont(Enum.FontWeight.Bold)
+	clearCross.TextColor3 = Color3.fromRGB(255, 255, 255)
+	clearCross.Parent = clearCircle
+
+	searchClearBtn.Activated:Connect(function()
+		searchField.Text = ""
+		searchField:ReleaseFocus()
+	end)
+
+	local function clearSearchResults()
+		for _, child in ipairs(searchResultsScroll:GetChildren()) do
+			if child:IsA("GuiObject") and child ~= srlPad and child ~= srlLayout then
+				child:Destroy()
+			end
+		end
+	end
+
+	local function highlightText(originalText, query, primaryCol, accentCol)
+		local orig = tostring(originalText or "")
+		if query == "" then return orig end
+		local lOrig = orig:lower()
+		local lQuery = query:lower()
+		local sIdx, eIdx = lOrig:find(lQuery, 1, true)
+		if not sIdx then return orig end
+		local hex = accentCol:ToHex()
+		local before = orig:sub(1, sIdx - 1)
+		local match = orig:sub(sIdx, eIdx)
+		local after = orig:sub(eIdx + 1)
+		return string.format('%s<font color="#%s"><b>%s</b></font>%s', before, hex, match, after)
+	end
+
+	local function updateSidebarSearch(query)
+		local q = (query or ""):gsub("^%s+", ""):gsub("%s+$", "")
+		if q == "" then
+			searchClearBtn.Visible = false
+			signIn.Visible = true
+			list.Visible = true
+			searchResultsScroll.Visible = false
+			clearSearchResults()
+			if refreshSidebarSelection then refreshSidebarSelection() end
+			return
+		end
+
+		searchClearBtn.Visible = true
+		signIn.Visible = false
+		list.Visible = false
+		searchResultsScroll.Visible = true
+		clearSearchResults()
+
+		local light = currentMode == "Light"
+		local primary = light and Color3.fromRGB(37, 40, 48) or Color3.fromRGB(244, 245, 249)
+		local secondary = light and Color3.fromRGB(108, 113, 125) or Color3.fromRGB(160, 165, 180)
+		local accent = (app.Theme and app.Theme.Controls and app.Theme.Controls.Selection and app.Theme.Controls.Selection[1] and app.Theme.Controls.Selection[1].Value) or Color3.fromRGB(0, 122, 255)
+
+		local tabIcons = {
+			Telemetry = { Bg = Color3.fromRGB(0, 122, 255), Sym = cascade.Symbols.sliderHorizontal3 },
+			Atmosphere = { Bg = Color3.fromRGB(255, 149, 0), Sym = cascade.Symbols.sunMax },
+			Locomotion = { Bg = Color3.fromRGB(52, 199, 89), Sym = cascade.Symbols.gaugeWithDotsNeedle67percent },
+			Appearance = { Bg = Color3.fromRGB(44, 44, 46), Sym = getAsset("appearance.png", "https://raw.githubusercontent.com/x8lua/Staconf/main/assets/appearance.png") },
+			Settings = { Bg = Color3.fromRGB(80, 84, 98), Sym = getAsset("config.png", "https://raw.githubusercontent.com/x8lua/Staconf/main/assets/config.png") },
+		}
+
+		local lowerQ = q:lower()
+		local matchCount = 0
+
+		for tabIdx, group in ipairs(searchRegistry) do
+			local matchedSubs = {}
+			local tabMatched = group.TabTitle:lower():find(lowerQ, 1, true) ~= nil
+			for _, item in ipairs(group.Items) do
+				local titleMatched = item.Title:lower():find(lowerQ, 1, true) ~= nil
+				local subMatched = item.Subtitle and item.Subtitle:lower():find(lowerQ, 1, true) ~= nil
+				if tabMatched or titleMatched or subMatched then
+					table.insert(matchedSubs, item)
+				end
+			end
+
+			if #matchedSubs > 0 then
+				matchCount += 1
+				local groupFrame = Instance.new("Frame")
+				groupFrame.Name = "Group_" .. group.TabTitle
+				groupFrame.Size = UDim2.new(1, 0, 0, 0)
+				groupFrame.AutomaticSize = Enum.AutomaticSize.Y
+				groupFrame.BackgroundTransparency = 1
+				groupFrame.LayoutOrder = tabIdx
+				groupFrame.Parent = searchResultsScroll
+
+				local gLayout = Instance.new("UIListLayout")
+				gLayout.SortOrder = Enum.SortOrder.LayoutOrder
+				gLayout.Padding = UDim.new(0, 3)
+				gLayout.Parent = groupFrame
+
+				local headerBtn = Instance.new("TextButton")
+				headerBtn.Name = "Header"
+				headerBtn.Size = UDim2.new(1, 0, 0, 24)
+				headerBtn.BackgroundTransparency = 1
+				headerBtn.Text = ""
+				headerBtn.AutoButtonColor = false
+				headerBtn.LayoutOrder = 1
+				headerBtn.Parent = groupFrame
+
+				local hCorner = Instance.new("UICorner")
+				hCorner.CornerRadius = UDim.new(0, 6)
+				hCorner.Parent = headerBtn
+
+				local iconDef = tabIcons[group.TabTitle] or { Bg = Color3.fromRGB(0, 122, 255), Sym = cascade.Symbols.sliderHorizontal3 }
+				local badge = Instance.new("Frame")
+				badge.Name = "Badge"
+				badge.Size = UDim2.fromOffset(20, 20)
+				badge.Position = UDim2.fromOffset(2, 2)
+				badge.BackgroundColor3 = iconDef.Bg
+				badge.BorderSizePixel = 0
+				badge.Parent = headerBtn
+				local bCorner = Instance.new("UICorner")
+				bCorner.CornerRadius = UDim.new(0, 5)
+				bCorner.Parent = badge
+
+				local sym = Instance.new("ImageLabel")
+				sym.Name = "Symbol"
+				sym.BackgroundTransparency = 1
+				sym.AnchorPoint = Vector2.new(0.5, 0.5)
+				sym.Position = UDim2.fromScale(0.5, 0.5)
+				sym.Size = UDim2.fromOffset(13, 13)
+				sym.Image = iconDef.Sym
+				sym.ImageColor3 = Color3.new(1, 1, 1)
+				sym.Parent = badge
+
+				local headerTitle = Instance.new("TextLabel")
+				headerTitle.Name = "Title"
+				headerTitle.BackgroundTransparency = 1
+				headerTitle.Position = UDim2.new(0, 28, 0, 0)
+				headerTitle.Size = UDim2.new(1, -30, 1, 0)
+				headerTitle.FontFace = staconfFont(Enum.FontWeight.SemiBold)
+				headerTitle.TextSize = 14
+				headerTitle.TextColor3 = primary
+				headerTitle.TextXAlignment = Enum.TextXAlignment.Left
+				headerTitle.RichText = true
+				headerTitle.Text = highlightText(group.TabTitle, lowerQ, primary, accent)
+				headerTitle.Parent = headerBtn
+
+				headerBtn.MouseEnter:Connect(function()
+					headerBtn.BackgroundColor3 = light and Color3.fromRGB(220, 222, 228) or Color3.fromRGB(50, 54, 68)
+					headerBtn.BackgroundTransparency = 0.5
+				end)
+				headerBtn.MouseLeave:Connect(function()
+					headerBtn.BackgroundTransparency = 1
+				end)
+				headerBtn.Activated:Connect(function()
+					if group.TabObj then
+						group.TabObj.Selected = true
+						if window.addToHistory then window.addToHistory(group.TabObj.__container) end
+					end
+				end)
+
+				for itemIdx, item in ipairs(matchedSubs) do
+					local itemBtn = Instance.new("TextButton")
+					itemBtn.Name = "Item_" .. itemIdx
+					itemBtn.Size = UDim2.new(1, 0, 0, 22)
+					itemBtn.BackgroundTransparency = 1
+					itemBtn.Text = ""
+					itemBtn.AutoButtonColor = false
+					itemBtn.LayoutOrder = itemIdx + 1
+					itemBtn.Parent = groupFrame
+
+					local iCorner = Instance.new("UICorner")
+					iCorner.CornerRadius = UDim.new(0, 5)
+					iCorner.Parent = itemBtn
+
+					local itemLabel = Instance.new("TextLabel")
+					itemLabel.Name = "Label"
+					itemLabel.BackgroundTransparency = 1
+					itemLabel.Position = UDim2.new(0, 28, 0, 0)
+					itemLabel.Size = UDim2.new(1, -30, 1, 0)
+					itemLabel.FontFace = staconfFont(Enum.FontWeight.Medium)
+					itemLabel.TextSize = 13
+					itemLabel.TextColor3 = secondary
+					itemLabel.TextXAlignment = Enum.TextXAlignment.Left
+					itemLabel.TextTruncate = Enum.TextTruncate.AtEnd
+					itemLabel.RichText = true
+					itemLabel.Text = highlightText(item.Title, lowerQ, secondary, accent)
+					itemLabel.Parent = itemBtn
+
+					itemBtn.MouseEnter:Connect(function()
+						itemBtn.BackgroundColor3 = light and Color3.fromRGB(224, 226, 232) or Color3.fromRGB(48, 52, 65)
+						itemBtn.BackgroundTransparency = 0.5
+						itemLabel.TextColor3 = primary
+					end)
+					itemBtn.MouseLeave:Connect(function()
+						itemBtn.BackgroundTransparency = 1
+						itemLabel.TextColor3 = secondary
+					end)
+					itemBtn.Activated:Connect(function()
+						if group.TabObj then
+							group.TabObj.Selected = true
+							if window.addToHistory then window.addToHistory(group.TabObj.__container) end
+							task.defer(function()
+								scrollMainTabToSection(item.Section)
+							end)
+						end
+					end)
+				end
+			end
+		end
+
+		if matchCount == 0 then
+			local noResult = Instance.new("TextLabel")
+			noResult.Name = "NoResults"
+			noResult.Size = UDim2.new(1, 0, 0, 40)
+			noResult.BackgroundTransparency = 1
+			noResult.FontFace = staconfFont(Enum.FontWeight.Regular)
+			noResult.TextSize = 13
+			noResult.TextColor3 = secondary
+			noResult.TextXAlignment = Enum.TextXAlignment.Center
+			noResult.Text = "No Results Found"
+			noResult.Parent = searchResultsScroll
+		end
+	end
+
+	chromeConnect(searchField:GetPropertyChangedSignal("Text"), function()
+		updateSidebarSearch(searchField.Text)
+	end)
+
 	local refreshing = false
 	refreshSidebarChrome = function()
 		if refreshing or not body.Parent then return end
@@ -2579,6 +2863,9 @@ local function installSidebarChrome(targetGui)
 		title.TextColor3 = light and Color3.fromRGB(37, 40, 48) or Color3.fromRGB(244, 245, 249)
 		subtitle.TextColor3 = light and Color3.fromRGB(108, 113, 125) or Color3.fromRGB(169, 174, 189)
 		alignContent()
+		if searchResultsScroll.Visible then
+			updateSidebarSearch(searchField.Text)
+		end
 		refreshing = false
 	end
 	for _, object in ipairs({body, sidebar, content, searchBody}) do
@@ -3237,7 +3524,7 @@ local function applySettings(values)
 end
 
 do
-	local overviewTab = window:Tab({
+	overviewTab = window:Tab({
 		Title = "Telemetry",
 		Icon = cascade.Symbols.sliderHorizontal3,
 		Selected = true,
@@ -3386,7 +3673,7 @@ do
 end
 
 do
-	local lightingTab = window:Tab({
+	lightingTab = window:Tab({
 		Title = "Atmosphere",
 		Icon = cascade.Symbols.sunMax,
 	})
@@ -3456,7 +3743,7 @@ do
 end
 
 do
-	local moveTab = window:Tab({
+	moveTab = window:Tab({
 		Title = "Locomotion",
 		Icon = cascade.Symbols.hare,
 	})
@@ -3541,7 +3828,7 @@ do
 end
 
 do
-	local appearanceTab = window:Tab({
+	appearanceTab = window:Tab({
 		Title = "Appearance",
 		Icon = getAsset("appearance.png", "https://raw.githubusercontent.com/x8lua/Staconf/main/assets/appearance.png"),
 	})
@@ -3669,7 +3956,7 @@ end
 
 
 do
-	local settingsTab = window:Tab({
+	settingsTab = window:Tab({
 		Title = "Settings",
 		Icon = getAsset("config.png", "https://raw.githubusercontent.com/x8lua/Staconf/main/assets/config.png"),
 	})
@@ -4347,6 +4634,71 @@ do
 		if not accountRefreshing then task.defer(refreshAccountPage) end
 	end)
 end
+
+searchRegistry = {
+	{
+		TabTitle = "Telemetry",
+		TabObj = overviewTab,
+		Items = {
+			{ Title = "Field Of View", Subtitle = "Dynamically adjust camera projection angle", Section = "Performance & Display" },
+			{ Title = "Low Latency Rendering", Subtitle = "Bypass redundant post-process sampling", Section = "Performance & Display" },
+			{ Title = "Pointer Control", Subtitle = "Configure gesture acceleration and modal controls", Section = "Performance & Display" },
+			{ Title = "Telemetry Ping", Subtitle = "Send status handshake to local monitor", Section = "Diagnostics & Maintenance" },
+			{ Title = "Garbage Collector", Subtitle = "Trigger incremental GC cycle to free memory", Section = "Diagnostics & Maintenance" },
+			{ Title = "Security Warning Dialog", Subtitle = "Show standalone macOS security alert dialog", Section = "Diagnostics & Maintenance" },
+			{ Title = "Permission Prompt Dialog", Subtitle = "Show standalone administrator credentials prompt", Section = "Diagnostics & Maintenance" },
+		},
+	},
+	{
+		TabTitle = "Atmosphere",
+		TabObj = lightingTab,
+		Items = {
+			{ Title = "Clock Time", Subtitle = "Adjust world time of day", Section = "Lighting Engine" },
+			{ Title = "Global Shadows", Subtitle = "Toggle sunlight occlusion shadows", Section = "Lighting Engine" },
+			{ Title = "Atmosphere Preset", Subtitle = "Quick switch ambient grading", Section = "Lighting Engine" },
+		},
+	},
+	{
+		TabTitle = "Locomotion",
+		TabObj = moveTab,
+		Items = {
+			{ Title = "Walk Speed", Subtitle = "Modify character horizontal speed", Section = "Movement Vectors" },
+			{ Title = "Jump Power", Subtitle = "Modify character vertical velocity impulse", Section = "Movement Vectors" },
+			{ Title = "Reset Locomotion", Subtitle = "Restore original character physics", Section = "Movement Vectors" },
+		},
+	},
+	{
+		TabTitle = "Appearance",
+		TabObj = appearanceTab,
+		Items = {
+			{ Title = "Interface Mode", Subtitle = "Select system lighting scheme", Section = "Appearance" },
+			{ Title = "Colour", Subtitle = "Tint color applied to active controls and tabs", Section = "Theme" },
+			{ Title = "Text Highlight Colour", Subtitle = "Accent tint for selected text elements", Section = "Theme" },
+			{ Title = "Icon and Widget Style", Subtitle = "Visual presentation of interface elements", Section = "Theme" },
+			{ Title = "Folder Colour", Subtitle = "Directory and group container tint", Section = "Theme" },
+			{ Title = "Acrylic Blur", Subtitle = "Sample real-time world glass refraction through sidebar", Section = "Window Effects" },
+			{ Title = "Window Dropshadow", Subtitle = "Toggle depth shadow around window frame", Section = "Window Effects" },
+			{ Title = "Minimize Hotkey", Subtitle = "Keycode to toggle window visibility", Section = "Window Effects" },
+			{ Title = "Pointer Options", Subtitle = "Configure trackpad acceleration and modal panel", Section = "Window Effects" },
+		},
+	},
+	{
+		TabTitle = "Settings",
+		TabObj = settingsTab,
+		Items = {
+			{ Title = "Glass Strength", Subtitle = "Main window distortion. Opacity stays unchanged.", Section = "Liquid Glass" },
+			{ Title = "Profile name", Subtitle = "Enter a unique profile name", Section = "Configuration" },
+			{ Title = "Saved profiles", Subtitle = "Choose a configuration preset to inspect or apply", Section = "Configuration" },
+			{ Title = "Save current settings", Subtitle = "Save session parameters into local profile", Section = "Configuration" },
+			{ Title = "Apply selected profile", Subtitle = "Load parameters from selected profile", Section = "Configuration" },
+			{ Title = "Load on startup", Subtitle = "Automatically apply the selected profile.", Section = "Configuration" },
+			{ Title = "Refresh from disk", Subtitle = "Reload saved profile entries", Section = "Manage profiles" },
+			{ Title = "Delete selected profile", Subtitle = "Remove active preset profile from storage", Section = "Manage profiles" },
+			{ Title = "Restore session defaults", Subtitle = "Saved profiles are kept.", Section = "Manage profiles" },
+			{ Title = "Unload StacOnf", Subtitle = "Removes this UI and its effects; saved profiles remain.", Section = "Uninstall" },
+		},
+	},
+}
 
 notify({
 	App = "StacOnf",
