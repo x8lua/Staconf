@@ -23834,8 +23834,6 @@ controller.DropkickSpeedState = Rere.State(tonumber(config.DropkickSpeed) or 1.4
 controller.DropkickSpeed = tonumber(config.DropkickSpeed) or 1.4
 controller.LarpkuranOpenedState = Rere.State(_G.LarpkuranIsRestarting ~= true)
 _G.LarpkuranController = controller
-end
-initStaconfUI()
 controller.LarpkuranSizeState = Rere.State(Vector2.new(500, 300))
 controller.EspStates = {
     Enabled = Rere.State(config.ESPEnabled ~= false),
@@ -33630,6 +33628,7 @@ _G.LarpkuranStaconfWindow = window
 _G.LarpkuranController = controller
 end
 initStaconfUI()
+end
 do
     local env = type(getgenv) == "function" and getgenv() or _G
     local requested = env.LarpRole == "Stand" or _G.LarpRole == "Stand"
