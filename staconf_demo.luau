@@ -909,7 +909,7 @@ local function createTooltipManager(owner, parent)
 	label.TextXAlignment = Enum.TextXAlignment.Center
 	label.TextYAlignment = Enum.TextYAlignment.Center
 	label.RichText = false
-	label.TextWrapped = true
+	label.TextWrapped = false
 	label.AutomaticSize = Enum.AutomaticSize.XY
 	label.Size = UDim2.new(0, 0, 0, 0)
 	label.Parent = card
@@ -922,7 +922,7 @@ local function createTooltipManager(owner, parent)
 	local function styleTooltip()
 		local light = currentMode == "Light"
 		card.BackgroundColor3 = light and Color3.fromRGB(246, 248, 252) or Color3.fromRGB(28, 30, 38)
-		card.BackgroundTransparency = light and 0.12 or 0.08
+		card.BackgroundTransparency = light and 0.08 or 0.04
 		rim.Color = light and Color3.fromRGB(200, 205, 218) or Color3.fromRGB(235, 242, 255)
 		label.TextColor3 = light and Color3.fromRGB(35, 38, 46) or Color3.fromRGB(244, 245, 249)
 	end
@@ -958,6 +958,8 @@ local function createTooltipManager(owner, parent)
 		styleTooltip()
 		label.Text = text
 
+		local guiService = game:GetService("GuiService")
+		local inset = guiService:GetGuiInset()
 		local targetPos = targetGui.AbsolutePosition
 		local targetSize = targetGui.AbsoluteSize
 		local screenWidth = gui.AbsoluteSize.X > 0 and gui.AbsoluteSize.X or 1920
@@ -965,8 +967,9 @@ local function createTooltipManager(owner, parent)
 		local centerX = targetPos.X + (targetSize.X / 2)
 		centerX = math.clamp(centerX, 140, screenWidth - 140)
 
-		local placeBelow = targetPos.Y < 320
-		local targetY = placeBelow and (targetPos.Y + targetSize.Y + 6) or (targetPos.Y - 6)
+		local adjustedY = targetPos.Y + inset.Y
+		local placeBelow = targetPos.Y < 300
+		local targetY = placeBelow and (adjustedY + targetSize.Y + 6) or (adjustedY - 6)
 		local startYOffset = placeBelow and -4 or 4
 
 		card.AnchorPoint = Vector2.new(0.5, placeBelow and 0 or 1)
