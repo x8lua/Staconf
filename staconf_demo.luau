@@ -1585,17 +1585,12 @@ local function showDialog(options)
 		tweenService:Create(scrim, TweenInfo.new(0.2, Enum.EasingStyle.Linear), { BackgroundTransparency = isLight and 0.65 or 0.45 }):Play()
 	end
 	local fadeIn = tweenService:Create(card, TweenInfo.new(0.2, Enum.EasingStyle.Linear), { GroupTransparency = 0 })
-	local expandMain = tweenService:Create(cardScale, TweenInfo.new(0.2, Enum.EasingStyle.Linear), { Scale = 1.0 })
+	local expandMain = tweenService:Create(cardScale, TweenInfo.new(0.2, Enum.EasingStyle.Linear), { Scale = 1.05 })
 	fadeIn:Play()
 	expandMain:Play()
-	fadeIn.Completed:Connect(function()
+	expandMain.Completed:Connect(function()
 		if isClosed then return end
-		local expandTween = tweenService:Create(cardScale, TweenInfo.new(0.1, Enum.EasingStyle.Linear), { Scale = 1.05 })
-		expandTween:Play()
-		expandTween.Completed:Connect(function()
-			if isClosed then return end
-			tweenService:Create(cardScale, TweenInfo.new(0.1, Enum.EasingStyle.Linear), { Scale = 1.0 }):Play()
-		end)
+		tweenService:Create(cardScale, TweenInfo.new(0.1, Enum.EasingStyle.Linear), { Scale = 1.0 }):Play()
 	end)
 
 	return dialogHandle
