@@ -2472,13 +2472,45 @@ local function installSidebarChrome(targetGui)
 	searchBody.Position = UDim2.fromOffset(12, 52)
 	searchBody.Size = UDim2.new(1, -24, 0, userInputService.TouchEnabled and 44 or 32)
 	searchField.AutomaticSize = Enum.AutomaticSize.None
-	searchField.Size = UDim2.new(1, -36, 1, 0)
+	searchField.Size = UDim2.new(1, -28, 1, 0)
 	searchField.TextSize = 14
 	searchField.TextTruncate = Enum.TextTruncate.AtEnd
-	local searchStroke = searchBody:FindFirstChildOfClass("UIStroke")
-	if searchStroke then searchStroke.Enabled = false end
-	local searchCorner = searchBody:FindFirstChildOfClass("UICorner")
-	if searchCorner then searchCorner.CornerRadius = UDim.new(0, 8) end
+	local searchCorner = searchBody:FindFirstChildOfClass("UICorner") or Instance.new("UICorner", searchBody)
+	searchCorner.CornerRadius = UDim.new(0, 24)
+	local searchStroke = searchBody:FindFirstChildOfClass("UIStroke") or Instance.new("UIStroke", searchBody)
+	searchStroke.Thickness = 2
+	searchStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+	searchStroke.Enabled = false
+
+	local searchLayout = searchBody:FindFirstChildOfClass("UIListLayout")
+	if searchLayout then
+		searchLayout.VerticalAlignment = Enum.VerticalAlignment.Center
+		searchLayout.Padding = UDim.new(0, 6)
+	end
+	local searchPad = searchBody:FindFirstChildOfClass("UIPadding")
+	if searchPad then
+		searchPad.PaddingLeft = UDim.new(0, 10)
+		searchPad.PaddingRight = UDim.new(0, 10)
+	end
+	local searchIcon = searchBody:FindFirstChildOfClass("ImageLabel")
+	if searchIcon then
+		searchIcon.Size = UDim2.fromOffset(14, 14)
+		searchIcon.Position = UDim2.fromOffset(0, 0)
+	end
+
+	local function updateSearchFocusOutline()
+		local accent = (app.Theme and app.Theme.Controls and app.Theme.Controls.Selection and app.Theme.Controls.Selection[1] and app.Theme.Controls.Selection[1].Value) or Color3.fromRGB(0, 122, 255)
+		searchStroke.Color = accent
+		if searchField:IsFocused() then
+			searchStroke.Enabled = true
+			searchStroke.Transparency = 0.15
+		else
+			searchStroke.Enabled = false
+		end
+	end
+
+	chromeConnect(searchField.Focused, updateSearchFocusOutline)
+	chromeConnect(searchField.FocusLost, updateSearchFocusOutline)
 	local signIn = Instance.new("TextButton")
 	signIn.Name = "SignInPanel"
 	signIn.Text = ""
@@ -2599,42 +2631,6 @@ local function installSidebarChrome(targetGui)
 	srlLayout.Padding = UDim.new(0, 8)
 	srlLayout.Parent = searchResultsScroll
 
-	local searchClearBtn = Instance.new("TextButton")
-	searchClearBtn.Name = "SearchClear"
-	searchClearBtn.Size = UDim2.fromOffset(18, 18)
-	searchClearBtn.AnchorPoint = Vector2.new(1, 0.5)
-	searchClearBtn.Position = UDim2.new(1, -6, 0.5, 0)
-	searchClearBtn.BackgroundTransparency = 1
-	searchClearBtn.Text = ""
-	searchClearBtn.Visible = false
-	searchClearBtn.ZIndex = 5
-	searchClearBtn.Parent = searchBody
-
-	local clearCircle = Instance.new("Frame")
-	clearCircle.Size = UDim2.fromOffset(14, 14)
-	clearCircle.AnchorPoint = Vector2.new(0.5, 0.5)
-	clearCircle.Position = UDim2.fromScale(0.5, 0.5)
-	clearCircle.BackgroundColor3 = Color3.fromRGB(140, 145, 160)
-	clearCircle.BorderSizePixel = 0
-	clearCircle.Parent = searchClearBtn
-	local ccCorner = Instance.new("UICorner")
-	ccCorner.CornerRadius = UDim.new(1, 0)
-	ccCorner.Parent = clearCircle
-
-	local clearCross = Instance.new("TextLabel")
-	clearCross.Size = UDim2.fromScale(1, 1)
-	clearCross.BackgroundTransparency = 1
-	clearCross.Text = "×"
-	clearCross.TextSize = 12
-	clearCross.FontFace = staconfFont(Enum.FontWeight.Bold)
-	clearCross.TextColor3 = Color3.fromRGB(255, 255, 255)
-	clearCross.Parent = clearCircle
-
-	searchClearBtn.Activated:Connect(function()
-		searchField.Text = ""
-		searchField:ReleaseFocus()
-	end)
-
 	local function clearSearchResults()
 		for _, child in ipairs(searchResultsScroll:GetChildren()) do
 			if child:IsA("GuiObject") and child ~= srlPad and child ~= srlLayout then
@@ -2660,7 +2656,6 @@ local function installSidebarChrome(targetGui)
 	local function updateSidebarSearch(query)
 		local q = (query or ""):gsub("^%s+", ""):gsub("%s+$", "")
 		if q == "" then
-			searchClearBtn.Visible = false
 			signIn.Visible = true
 			list.Visible = true
 			searchResultsScroll.Visible = false
@@ -2669,7 +2664,6 @@ local function installSidebarChrome(targetGui)
 			return
 		end
 
-		searchClearBtn.Visible = true
 		signIn.Visible = false
 		list.Visible = false
 		searchResultsScroll.Visible = true
