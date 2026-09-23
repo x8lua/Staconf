@@ -1403,10 +1403,10 @@ local function showDialog(options)
 		if isClosed then return end
 		isClosed = true
 		if scrim then
-			tweenService:Create(scrim, TweenInfo.new(0.5, Enum.EasingStyle.Linear), { BackgroundTransparency = 1 }):Play()
+			tweenService:Create(scrim, TweenInfo.new(0.35, Enum.EasingStyle.Linear), { BackgroundTransparency = 1 }):Play()
 		end
-		tweenService:Create(cardScale, TweenInfo.new(0.5, Enum.EasingStyle.Linear), { Scale = 0.85 }):Play()
-		local fadeOut = tweenService:Create(card, TweenInfo.new(0.5, Enum.EasingStyle.Linear), { GroupTransparency = 1 })
+		tweenService:Create(cardScale, TweenInfo.new(0.35, Enum.EasingStyle.Linear), { Scale = 0.85 }):Play()
+		local fadeOut = tweenService:Create(card, TweenInfo.new(0.35, Enum.EasingStyle.Linear), { GroupTransparency = 1 })
 		fadeOut:Play()
 		fadeOut.Completed:Connect(function()
 			dialogContainer:Destroy()
