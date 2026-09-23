@@ -1053,7 +1053,7 @@ local function showDialog(options)
 	local cardWrapper = Instance.new("Frame")
 	cardWrapper.Name = "CardWrapper"
 	cardWrapper.AnchorPoint = Vector2.new(0.5, 0.5)
-	cardWrapper.Position = UDim2.new(0.5, 0, 0.31, 0)
+	cardWrapper.Position = UDim2.new(0.5, 0, 0.35, 0)
 	cardWrapper.Size = UDim2.fromOffset(cardWidth, 0)
 	cardWrapper.AutomaticSize = Enum.AutomaticSize.Y
 	cardWrapper.BackgroundTransparency = 1
@@ -1061,38 +1061,10 @@ local function showDialog(options)
 	cardWrapper.ZIndex = 10
 
 	local cardScale = Instance.new("UIScale")
-	cardScale.Scale = 0.88
+	cardScale.Scale = 0.92
 	cardScale.Parent = cardWrapper
 
-	local ambientShadow = Instance.new("ImageLabel")
-	ambientShadow.Name = "AmbientShadow"
-	ambientShadow.AnchorPoint = Vector2.new(0.5, 0.5)
-	ambientShadow.Position = UDim2.new(0.5, 0, 0.5, 6)
-	ambientShadow.Size = UDim2.new(1, 72, 1, 72)
-	ambientShadow.BackgroundTransparency = 1
-	ambientShadow.Image = "rbxassetid://5554236805"
-	ambientShadow.ScaleType = Enum.ScaleType.Slice
-	ambientShadow.SliceCenter = Rect.new(23, 23, 277, 277)
-	ambientShadow.ImageColor3 = Color3.fromRGB(0, 0, 0)
-	ambientShadow.ImageTransparency = isLight and 0.65 or 0.45
-	ambientShadow.ZIndex = 1
-	ambientShadow.Parent = cardWrapper
-
-	local contactShadow = Instance.new("ImageLabel")
-	contactShadow.Name = "ContactShadow"
-	contactShadow.AnchorPoint = Vector2.new(0.5, 0.5)
-	contactShadow.Position = UDim2.new(0.5, 0, 0.5, 2)
-	contactShadow.Size = UDim2.new(1, 36, 1, 36)
-	contactShadow.BackgroundTransparency = 1
-	contactShadow.Image = "rbxassetid://5554236805"
-	contactShadow.ScaleType = Enum.ScaleType.Slice
-	contactShadow.SliceCenter = Rect.new(23, 23, 277, 277)
-	contactShadow.ImageColor3 = Color3.fromRGB(0, 0, 0)
-	contactShadow.ImageTransparency = isLight and 0.50 or 0.30
-	contactShadow.ZIndex = 2
-	contactShadow.Parent = cardWrapper
-
-	local card = Instance.new("Frame")
+	local card = Instance.new("CanvasGroup")
 	card.Name = "DialogCard"
 	card.Size = UDim2.fromScale(1, 0)
 	card.AutomaticSize = Enum.AutomaticSize.Y
@@ -1100,6 +1072,7 @@ local function showDialog(options)
 	card.ZIndex = 3
 	card.BackgroundColor3 = isLight and Color3.fromRGB(246, 247, 250) or Color3.fromRGB(26, 28, 36)
 	card.BackgroundTransparency = isLight and 0.18 or 0.10
+	card.GroupTransparency = 1
 	card.Parent = cardWrapper
 
 	local cardCorner = Instance.new("UICorner")
@@ -1193,7 +1166,7 @@ local function showDialog(options)
 	titleLabel.Text = options.Title or "Alert"
 	titleLabel.Size = UDim2.new(1, 0, 0, 0)
 	titleLabel.AutomaticSize = Enum.AutomaticSize.Y
-	titleLabel.FontFace = staconfFont(Enum.FontWeight.Bold)
+	titleLabel.FontFace = staconfFont(Enum.FontWeight.Medium)
 	titleLabel.TextSize = 14.5
 	titleLabel.LineHeight = 1.15
 	titleLabel.TextWrapped = true
@@ -1347,14 +1320,12 @@ local function showDialog(options)
 		if isClosed then return end
 		isClosed = true
 		if scrim then
-			tweenService:Create(scrim, TweenInfo.new(0.2, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), { BackgroundTransparency = 1 }):Play()
+			tweenService:Create(scrim, TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { BackgroundTransparency = 1 }):Play()
 		end
-		tweenService:Create(cardWrapper, TweenInfo.new(0.2, Enum.EasingStyle.Quart, Enum.EasingDirection.In), {
-			Position = UDim2.new(cardWrapper.Position.X.Scale, cardWrapper.Position.X.Offset, cardWrapper.Position.Y.Scale, cardWrapper.Position.Y.Offset + 12),
-		}):Play()
-		local t = tweenService:Create(cardScale, TweenInfo.new(0.2, Enum.EasingStyle.Quart, Enum.EasingDirection.In), { Scale = 0.88 })
-		t:Play()
-		t.Completed:Connect(function()
+		tweenService:Create(cardScale, TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { Scale = 0.88 }):Play()
+		local fadeOut = tweenService:Create(card, TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { GroupTransparency = 1 })
+		fadeOut:Play()
+		fadeOut.Completed:Connect(function()
 			dialogContainer:Destroy()
 			for i, d in ipairs(activeDialogs) do
 				if d == dialogHandle then
@@ -1486,17 +1457,17 @@ local function showDialog(options)
 		if isPrimary then
 			btn.BackgroundColor3 = Color3.fromRGB(0, 122, 255)
 			btn.TextColor3 = Color3.fromRGB(255, 255, 255)
-			btn.FontFace = staconfFont(Enum.FontWeight.SemiBold)
+			btn.FontFace = staconfFont(Enum.FontWeight.Medium)
 			btn.TextSize = 13.5
 		elseif isDestructive then
 			btn.BackgroundColor3 = Color3.fromRGB(255, 59, 48)
 			btn.TextColor3 = Color3.fromRGB(255, 255, 255)
-			btn.FontFace = staconfFont(Enum.FontWeight.SemiBold)
+			btn.FontFace = staconfFont(Enum.FontWeight.Medium)
 			btn.TextSize = 13.5
 		else
 			btn.BackgroundColor3 = isLight and Color3.fromRGB(226, 228, 236) or Color3.fromRGB(56, 59, 72)
 			btn.TextColor3 = isLight and Color3.fromRGB(35, 38, 45) or Color3.fromRGB(240, 242, 248)
-			btn.FontFace = staconfFont(Enum.FontWeight.Regular)
+			btn.FontFace = staconfFont(Enum.FontWeight.Medium)
 			btn.TextSize = 13.5
 
 			bStroke = Instance.new("UIStroke")
@@ -1591,12 +1562,15 @@ local function showDialog(options)
 	end
 
 	if scrim then
-		tweenService:Create(scrim, TweenInfo.new(0.28, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), { BackgroundTransparency = isLight and 0.65 or 0.45 }):Play()
+		tweenService:Create(scrim, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { BackgroundTransparency = isLight and 0.65 or 0.45 }):Play()
 	end
-	tweenService:Create(cardWrapper, TweenInfo.new(0.32, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
-		Position = UDim2.new(0.5, 0, 0.35, 0),
-	}):Play()
-	tweenService:Create(cardScale, TweenInfo.new(0.32, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = 1 }):Play()
+	tweenService:Create(card, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { GroupTransparency = 0 }):Play()
+	local expandTween = tweenService:Create(cardScale, TweenInfo.new(0.5, Enum.EasingStyle.Sine, Enum.EasingDirection.Out), { Scale = 0.97 })
+	expandTween:Play()
+	expandTween.Completed:Connect(function()
+		if isClosed then return end
+		tweenService:Create(cardScale, TweenInfo.new(0.25, Enum.EasingStyle.Back, Enum.EasingDirection.In), { Scale = 1 }):Play()
+	end)
 
 	return dialogHandle
 end
@@ -1705,7 +1679,7 @@ local function createMiddlePanel(targetGui)
 		local lbl = Instance.new("TextLabel")
 		lbl.Text = title
 		lbl.TextSize = 15
-		lbl.FontFace = staconfFont(Enum.FontWeight.Regular)
+		lbl.FontFace = staconfFont(Enum.FontWeight.Medium)
 		lbl.TextColor3 = (currentMode == "Light" and Color3.fromRGB(35, 35, 35) or Color3.fromRGB(235, 235, 235))
 		lbl.TextXAlignment = Enum.TextXAlignment.Left
 		lbl.AnchorPoint = Vector2.new(0, 0.5)
@@ -1787,7 +1761,7 @@ local function createMiddlePanel(targetGui)
 	local sLbl = Instance.new("TextLabel")
 	sLbl.Text = "Scroll speed"
 	sLbl.TextSize = 15
-	sLbl.FontFace = staconfFont(Enum.FontWeight.Regular)
+	sLbl.FontFace = staconfFont(Enum.FontWeight.Medium)
 	sLbl.TextColor3 = (currentMode == "Light" and Color3.fromRGB(35, 35, 35) or Color3.fromRGB(235, 235, 235))
 	sLbl.TextXAlignment = Enum.TextXAlignment.Left
 	sLbl.AnchorPoint = Vector2.new(0, 0.5)
@@ -1918,7 +1892,7 @@ local function createMiddlePanel(targetGui)
 	local dLbl = Instance.new("TextLabel")
 	dLbl.Text = "Dragging style"
 	dLbl.TextSize = 15
-	dLbl.FontFace = staconfFont(Enum.FontWeight.Regular)
+	dLbl.FontFace = staconfFont(Enum.FontWeight.Medium)
 	dLbl.TextColor3 = (currentMode == "Light" and Color3.fromRGB(35, 35, 35) or Color3.fromRGB(235, 235, 235))
 	dLbl.TextXAlignment = Enum.TextXAlignment.Left
 	dLbl.AnchorPoint = Vector2.new(0, 0.5)
@@ -1952,7 +1926,7 @@ local function createMiddlePanel(targetGui)
 	cancelBtn.Name = "Cancel"
 	cancelBtn.Text = "Cancel"
 	cancelBtn.TextSize = 13
-	cancelBtn.FontFace = staconfFont(Enum.FontWeight.Regular)
+	cancelBtn.FontFace = staconfFont(Enum.FontWeight.Medium)
 	cancelBtn.TextColor3 = (currentMode == "Light" and Color3.fromRGB(40, 40, 40) or Color3.fromRGB(240, 240, 240))
 	cancelBtn.BackgroundColor3 = (currentMode == "Light" and Color3.fromRGB(236, 238, 244) or Color3.fromRGB(45, 48, 60))
 	cancelBtn.BorderSizePixel = 0
@@ -1969,7 +1943,7 @@ local function createMiddlePanel(targetGui)
 	okBtn.Name = "OK"
 	okBtn.Text = "OK"
 	okBtn.TextSize = 13
-	okBtn.FontFace = staconfFont(Enum.FontWeight.SemiBold)
+	okBtn.FontFace = staconfFont(Enum.FontWeight.Medium)
 	okBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 	okBtn.BackgroundColor3 = Color3.fromRGB(0, 122, 255)
 	okBtn.BorderSizePixel = 0
@@ -2304,7 +2278,10 @@ local function applyModernVisuals(targetGui)
 	local function updateVisual(obj)
 		if not obj.Parent then return end
 		if obj:IsA("TextLabel") and (obj.Name == "Title" or obj.Name == "Subtitle") and obj.Parent and obj.Parent.Name == "TitleStack" and (not targetGui:FindFirstChild("Sidebar", true) or not obj:IsDescendantOf(targetGui:FindFirstChild("Sidebar", true))) then
-			if obj.Name == "Title" and obj.TextSize == 15 then obj.TextSize = 16 end
+			if obj.Name == "Title" then
+				obj.FontFace = staconfFont(Enum.FontWeight.Medium)
+				if obj.TextSize == 15 then obj.TextSize = 16 end
+			end
 			if obj.Name == "Subtitle" and obj.TextSize == 13 then
 				obj.TextSize = 14
 				obj.Size = UDim2.new(obj.Size.X.Scale, obj.Size.X.Offset, obj.Size.Y.Scale, 16)
