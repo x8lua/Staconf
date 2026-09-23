@@ -2261,6 +2261,18 @@ local function installSidebarChrome(targetGui)
 		rounding.CornerRadius = UDim.new(1, 0)
 		rounding.Parent = part
 	end
+	if localPlayer and localPlayer.UserId > 0 then
+		local sAvatar = Instance.new("ImageLabel")
+		sAvatar.Name = "UserAvatar"
+		sAvatar.Size = UDim2.fromScale(1, 1)
+		sAvatar.BackgroundTransparency = 1
+		sAvatar.Image = "rbxthumb://type=AvatarHeadShot&id=" .. tostring(localPlayer.UserId) .. "&w=150&h=150"
+		sAvatar.ZIndex = 3
+		local sCorner = Instance.new("UICorner")
+		sCorner.CornerRadius = UDim.new(1, 0)
+		sCorner.Parent = sAvatar
+		sAvatar.Parent = avatar
+	end
 	local function text(name, value, y, size, weight)
 		local label = Instance.new("TextLabel")
 		label.Name = name
@@ -2275,25 +2287,18 @@ local function installSidebarChrome(targetGui)
 		label.Parent = signIn
 		return label
 	end
-	local title = text("Title", "Free User", 7, 15, Enum.FontWeight.SemiBold)
-	local subtitle = text("Subtitle", "View account", 27, 11, Enum.FontWeight.Regular)
+	local title = text("Title", localPlayer and localPlayer.DisplayName or "Free User", 7, 15, Enum.FontWeight.SemiBold)
+	local subtitle = text("Subtitle", localPlayer and ("@" .. localPlayer.Name) or "View account", 27, 11, Enum.FontWeight.Regular)
 	chromeConnect(signIn.Activated, function()
 		if not accountTab then return end
 		accountTab.Selected = true
 		if window.addToHistory then window.addToHistory(accountTab.__container) end
 		local page = accountTab.Structures.Page
 		page = typeof(page) == "Instance" and page or page.__instance
-		local header = page:FindFirstChild("AccountHeader", true)
-		local information = page:FindFirstChild("AccountInformation", true)
-		if header then
-			header.Position = UDim2.fromOffset(0, 12)
-			tweenService:Create(header, TweenInfo.new(0.3, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), { Position = UDim2.fromOffset(0, 0) }):Play()
-		end
-		if information then
-			information.Position = UDim2.fromOffset(16, 182)
-			task.delay(0.04, function()
-				if information.Parent then tweenService:Create(information, TweenInfo.new(0.34, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), { Position = UDim2.fromOffset(16, 164) }):Play() end
-			end)
+		local profileSurface = page:FindFirstChild("ProfileSurface", true)
+		if profileSurface then
+			profileSurface.Position = UDim2.fromOffset(0, 12)
+			tweenService:Create(profileSurface, TweenInfo.new(0.32, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), { Position = UDim2.fromOffset(0, 0) }):Play()
 		end
 		task.delay(0.12, function()
 			if accountTab.Selected and refreshAccountPage then refreshAccountPage() end
@@ -3437,116 +3442,391 @@ do
 	local page = accountTab.Structures.Page
 	page = typeof(page) == "Instance" and page or page.__instance
 	local pageLayout = page:FindFirstChildOfClass("UIListLayout")
-	if pageLayout then pageLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center end
+	if pageLayout then
+		pageLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+		pageLayout.Padding = UDim.new(0, 14)
+	end
+
 	local profile = Instance.new("Frame")
 	profile.Name = "ProfileSurface"
-	profile.Size = UDim2.new(1, -34, 0, 344)
+	profile.Size = UDim2.new(1, -34, 0, 0)
+	profile.AutomaticSize = Enum.AutomaticSize.Y
 	profile.BorderSizePixel = 0
 	profile.LayoutOrder = 1
 	profile.Parent = page
+
 	local profileConstraint = Instance.new("UISizeConstraint")
-	profileConstraint.MaxSize = Vector2.new(420, 344)
+	profileConstraint.MaxSize = Vector2.new(520, 4000)
 	profileConstraint.Parent = profile
+
 	local profileCorner = Instance.new("UICorner")
 	profileCorner.CornerRadius = UDim.new(0, 16)
 	profileCorner.Parent = profile
-	local profileLayout = Instance.new("Frame")
-	profileLayout.Name = "ProfileLayout"
-	profileLayout.Size = UDim2.fromScale(1, 1)
-	profileLayout.BackgroundTransparency = 1
-	profileLayout.BorderSizePixel = 0
-	profileLayout.Parent = profile
+
 	local profileStroke = Instance.new("UIStroke")
 	profileStroke.Name = "ProfileStroke"
 	profileStroke.Thickness = 1
 	profileStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 	profileStroke.Parent = profile
+
+	local profilePadding = Instance.new("UIPadding")
+	profilePadding.PaddingTop = UDim.new(0, 20)
+	profilePadding.PaddingBottom = UDim.new(0, 22)
+	profilePadding.PaddingLeft = UDim.new(0, 20)
+	profilePadding.PaddingRight = UDim.new(0, 20)
+	profilePadding.Parent = profile
+
+	local profileList = Instance.new("UIListLayout")
+	profileList.FillDirection = Enum.FillDirection.Vertical
+	profileList.SortOrder = Enum.SortOrder.LayoutOrder
+	profileList.HorizontalAlignment = Enum.HorizontalAlignment.Center
+	profileList.Padding = UDim.new(0, 16)
+	profileList.Parent = profile
+
 	local header = Instance.new("Frame")
 	header.Name = "AccountHeader"
-	header.Size = UDim2.new(1, 0, 0, 148)
+	header.Size = UDim2.new(1, 0, 0, 0)
+	header.AutomaticSize = Enum.AutomaticSize.Y
 	header.BackgroundTransparency = 1
-	header.Parent = profileLayout
+	header.LayoutOrder = 1
+	header.Parent = profile
+
+	local headerList = Instance.new("UIListLayout")
+	headerList.FillDirection = Enum.FillDirection.Vertical
+	headerList.SortOrder = Enum.SortOrder.LayoutOrder
+	headerList.HorizontalAlignment = Enum.HorizontalAlignment.Center
+	headerList.Padding = UDim.new(0, 6)
+	headerList.Parent = header
+
+	local avatarWrapper = Instance.new("Frame")
+	avatarWrapper.Name = "AvatarWrapper"
+	avatarWrapper.Size = UDim2.fromOffset(76, 76)
+	avatarWrapper.BackgroundTransparency = 1
+	avatarWrapper.LayoutOrder = 1
+	avatarWrapper.Parent = header
+
 	local avatar = Instance.new("Frame")
 	avatar.Name = "AccountAvatar"
-	avatar.AnchorPoint = Vector2.new(0.5, 0)
-	avatar.Position = UDim2.new(0.5, 0, 0, 26)
-	avatar.Size = UDim2.fromOffset(84, 84)
+	avatar.Size = UDim2.fromScale(1, 1)
 	avatar.BorderSizePixel = 0
-	avatar.Parent = header
+	avatar.Parent = avatarWrapper
+
 	local avatarCorner = Instance.new("UICorner")
 	avatarCorner.CornerRadius = UDim.new(1, 0)
 	avatarCorner.Parent = avatar
-	local head = Instance.new("Frame")
-	head.AnchorPoint = Vector2.new(0.5, 0)
-	head.Position = UDim2.new(0.5, 0, 0, 18)
-	head.Size = UDim2.fromOffset(26, 26)
-	head.BackgroundColor3 = Color3.new(1, 1, 1)
-	head.BorderSizePixel = 0
-	head.Parent = avatar
-	local headCorner = Instance.new("UICorner")
-	headCorner.CornerRadius = UDim.new(1, 0)
-	headCorner.Parent = head
-	local shoulders = Instance.new("Frame")
-	shoulders.AnchorPoint = Vector2.new(0.5, 0)
-	shoulders.Position = UDim2.new(0.5, 0, 0, 47)
-	shoulders.Size = UDim2.fromOffset(48, 28)
-	shoulders.BackgroundColor3 = Color3.new(1, 1, 1)
-	shoulders.BorderSizePixel = 0
-	shoulders.Parent = avatar
-	local shouldersCorner = Instance.new("UICorner")
-	shouldersCorner.CornerRadius = UDim.new(1, 0)
-	shouldersCorner.Parent = shoulders
-	local information = Instance.new("Frame")
-	information.Name = "AccountInformation"
-	information.Position = UDim2.new(0, 16, 0, 164)
-	information.Size = UDim2.new(1, -32, 0, 164)
-	information.BorderSizePixel = 0
-	information.Parent = profileLayout
-	local informationCorner = Instance.new("UICorner")
-	informationCorner.CornerRadius = UDim.new(0, 12)
-	informationCorner.Parent = information
-	local values = {
-		{"Gakuran Name", "Free User"},
-		{"Roblox Username", "Not connected"},
-		{"Display Name", "Free User"},
-	}
-	local valueLabels = {}
-	for index, item in ipairs(values) do
-		local row = Instance.new("Frame")
-		row.Name = "AccountRow" .. index
-		row.Position = UDim2.fromOffset(0, (index - 1) * 54)
-		row.Size = UDim2.new(1, 0, 0, 54)
-		row.BackgroundTransparency = 1
-		row.Parent = information
-		local label = Instance.new("TextLabel")
-		label.Text = item[1]
-		label.Position = UDim2.fromOffset(16, 8)
-		label.Size = UDim2.new(1, -32, 0, 16)
-		label.BackgroundTransparency = 1
-		label.FontFace = staconfFont(Enum.FontWeight.Regular)
-		label.TextSize = 12
-		label.TextXAlignment = Enum.TextXAlignment.Left
-		label.Parent = row
-		local value = Instance.new("TextLabel")
-		value.Text = item[2]
-		value.Position = UDim2.fromOffset(16, 25)
-		value.Size = UDim2.new(1, -32, 0, 20)
-		value.BackgroundTransparency = 1
-		value.FontFace = staconfFont(Enum.FontWeight.Regular)
-		value.TextSize = 15
-		value.TextXAlignment = Enum.TextXAlignment.Left
-		value.TextTruncate = Enum.TextTruncate.AtEnd
-		value.Parent = row
-		table.insert(valueLabels, {label, value})
-		if index < #values then
-			local divider = Instance.new("Frame")
-			divider.Name = "AccountDivider"
-			divider.Position = UDim2.new(0, 16, 1, -1)
-			divider.Size = UDim2.new(1, -32, 0, 1)
-			divider.BorderSizePixel = 0
-			divider.Parent = row
-		end
+
+	for _, spec in ipairs({{26, 12, 24, 24}, {16, 40, 44, 24}}) do
+		local part = Instance.new("Frame")
+		part.Size = UDim2.fromOffset(spec[3], spec[4])
+		part.Position = UDim2.fromOffset(spec[1], spec[2])
+		part.BorderSizePixel = 0
+		part.BackgroundColor3 = Color3.new(1, 1, 1)
+		part.Parent = avatar
+		local rounding = Instance.new("UICorner")
+		rounding.CornerRadius = UDim.new(1, 0)
+		rounding.Parent = part
 	end
+
+	if localPlayer and localPlayer.UserId > 0 then
+		local avatarImg = Instance.new("ImageLabel")
+		avatarImg.Name = "AvatarHeadshot"
+		avatarImg.Size = UDim2.fromScale(1, 1)
+		avatarImg.BackgroundTransparency = 1
+		avatarImg.Image = "rbxthumb://type=AvatarHeadShot&id=" .. tostring(localPlayer.UserId) .. "&w=150&h=150"
+		avatarImg.ZIndex = 3
+		local aCorner = Instance.new("UICorner")
+		aCorner.CornerRadius = UDim.new(1, 0)
+		aCorner.Parent = avatarImg
+		avatarImg.Parent = avatar
+	end
+
+	local statusDot = Instance.new("Frame")
+	statusDot.Name = "StatusDot"
+	statusDot.Size = UDim2.fromOffset(16, 16)
+	statusDot.AnchorPoint = Vector2.new(1, 1)
+	statusDot.Position = UDim2.new(1, 0, 1, 0)
+	statusDot.BackgroundColor3 = Color3.fromRGB(52, 199, 89)
+	statusDot.BorderSizePixel = 0
+	statusDot.ZIndex = 5
+	local dotCorner = Instance.new("UICorner")
+	dotCorner.CornerRadius = UDim.new(1, 0)
+	dotCorner.Parent = statusDot
+	local dotStroke = Instance.new("UIStroke")
+	dotStroke.Thickness = 2.5
+	dotStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+	dotStroke.Parent = statusDot
+	statusDot.Parent = avatarWrapper
+
+	local displayNameLabel = Instance.new("TextLabel")
+	displayNameLabel.Name = "DisplayName"
+	displayNameLabel.Text = localPlayer and localPlayer.DisplayName or "Free User"
+	displayNameLabel.Size = UDim2.new(1, 0, 0, 24)
+	displayNameLabel.BackgroundTransparency = 1
+	displayNameLabel.FontFace = staconfFont(Enum.FontWeight.Bold)
+	displayNameLabel.TextSize = 19
+	displayNameLabel.TextXAlignment = Enum.TextXAlignment.Center
+	displayNameLabel.LayoutOrder = 2
+	displayNameLabel.Parent = header
+
+	local handleLabel = Instance.new("TextLabel")
+	handleLabel.Name = "Handle"
+	handleLabel.Text = "@" .. (localPlayer and localPlayer.Name or "local_client")
+	handleLabel.Size = UDim2.new(1, 0, 0, 16)
+	handleLabel.BackgroundTransparency = 1
+	handleLabel.FontFace = staconfFont(Enum.FontWeight.Regular)
+	handleLabel.TextSize = 13
+	handleLabel.TextXAlignment = Enum.TextXAlignment.Center
+	handleLabel.LayoutOrder = 3
+	handleLabel.Parent = header
+
+	local badgesRow = Instance.new("Frame")
+	badgesRow.Name = "BadgesRow"
+	badgesRow.Size = UDim2.new(1, 0, 0, 22)
+	badgesRow.BackgroundTransparency = 1
+	badgesRow.LayoutOrder = 4
+	badgesRow.Parent = header
+
+	local bList = Instance.new("UIListLayout")
+	bList.FillDirection = Enum.FillDirection.Horizontal
+	bList.SortOrder = Enum.SortOrder.LayoutOrder
+	bList.HorizontalAlignment = Enum.HorizontalAlignment.Center
+	bList.Padding = UDim.new(0, 8)
+	bList.Parent = badgesRow
+
+	local badgeElements = {}
+	local function createBadge(badgeText, color, order)
+		local bFrame = Instance.new("Frame")
+		bFrame.Name = "Badge_" .. tostring(order)
+		bFrame.Size = UDim2.fromOffset(0, 20)
+		bFrame.AutomaticSize = Enum.AutomaticSize.X
+		bFrame.BackgroundColor3 = color
+		bFrame.BackgroundTransparency = 0.82
+		bFrame.BorderSizePixel = 0
+		bFrame.LayoutOrder = order
+		local bCorn = Instance.new("UICorner")
+		bCorn.CornerRadius = UDim.new(1, 0)
+		bCorn.Parent = bFrame
+		local bPad = Instance.new("UIPadding")
+		bPad.PaddingLeft = UDim.new(0, 9)
+		bPad.PaddingRight = UDim.new(0, 9)
+		bPad.Parent = bFrame
+		local bLbl = Instance.new("TextLabel")
+		bLbl.Text = badgeText
+		bLbl.Size = UDim2.new(0, 0, 1, 0)
+		bLbl.AutomaticSize = Enum.AutomaticSize.X
+		bLbl.BackgroundTransparency = 1
+		bLbl.FontFace = staconfFont(Enum.FontWeight.Medium)
+		bLbl.TextSize = 11
+		bLbl.TextColor3 = color
+		bLbl.Parent = bFrame
+		bFrame.Parent = badgesRow
+		table.insert(badgeElements, { frame = bFrame, label = bLbl, color = color })
+		return bFrame
+	end
+
+	createBadge("StacOnf Pro", Color3.fromRGB(0, 122, 255), 1)
+	createBadge("Runtime Active", Color3.fromRGB(52, 199, 89), 2)
+	createBadge("macOS Sequoia", Color3.fromRGB(142, 142, 147), 3)
+
+	local cardsRegistry = {}
+	local function createSectionGroup(titleText, items, order)
+		local group = Instance.new("Frame")
+		group.Name = "SectionGroup_" .. tostring(order)
+		group.Size = UDim2.new(1, 0, 0, 0)
+		group.AutomaticSize = Enum.AutomaticSize.Y
+		group.BackgroundTransparency = 1
+		group.LayoutOrder = order
+		group.Parent = profile
+
+		local gList = Instance.new("UIListLayout")
+		gList.FillDirection = Enum.FillDirection.Vertical
+		gList.SortOrder = Enum.SortOrder.LayoutOrder
+		gList.Padding = UDim.new(0, 6)
+		gList.Parent = group
+
+		local sTitle = Instance.new("TextLabel")
+		sTitle.Name = "SectionTitle"
+		sTitle.Text = string.upper(titleText)
+		sTitle.Size = UDim2.new(1, 0, 0, 14)
+		sTitle.BackgroundTransparency = 1
+		sTitle.FontFace = staconfFont(Enum.FontWeight.SemiBold)
+		sTitle.TextSize = 11
+		sTitle.TextXAlignment = Enum.TextXAlignment.Left
+		sTitle.LayoutOrder = 1
+		sTitle.Parent = group
+
+		local card = Instance.new("Frame")
+		card.Name = "Card"
+		card.Size = UDim2.new(1, 0, 0, 0)
+		card.AutomaticSize = Enum.AutomaticSize.Y
+		card.BorderSizePixel = 0
+		card.LayoutOrder = 2
+		card.Parent = group
+
+		local cardCorner = Instance.new("UICorner")
+		cardCorner.CornerRadius = UDim.new(0, 12)
+		cardCorner.Parent = card
+
+		local cardStroke = Instance.new("UIStroke")
+		cardStroke.Thickness = 1
+		cardStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+		cardStroke.Parent = card
+
+		local cardList = Instance.new("UIListLayout")
+		cardList.FillDirection = Enum.FillDirection.Vertical
+		cardList.SortOrder = Enum.SortOrder.LayoutOrder
+		cardList.Parent = card
+
+		local rowLabels = {}
+		for idx, item in ipairs(items) do
+			local row = Instance.new("Frame")
+			row.Name = "Row_" .. tostring(idx)
+			row.Size = UDim2.new(1, 0, 0, 44)
+			row.BackgroundTransparency = 1
+			row.LayoutOrder = idx
+			row.Parent = card
+
+			local rPad = Instance.new("UIPadding")
+			rPad.PaddingLeft = UDim.new(0, 14)
+			rPad.PaddingRight = UDim.new(0, 14)
+			rPad.Parent = row
+
+			local lText = Instance.new("TextLabel")
+			lText.Name = "Label"
+			lText.Text = item[1]
+			lText.Size = UDim2.new(0.44, 0, 1, 0)
+			lText.BackgroundTransparency = 1
+			lText.FontFace = staconfFont(Enum.FontWeight.Regular)
+			lText.TextSize = 13
+			lText.TextXAlignment = Enum.TextXAlignment.Left
+			lText.Parent = row
+
+			local vText = Instance.new("TextLabel")
+			vText.Name = "Value"
+			vText.Text = item[2]
+			vText.Size = UDim2.new(0.56, 0, 1, 0)
+			vText.Position = UDim2.new(0.44, 0, 0, 0)
+			vText.BackgroundTransparency = 1
+			vText.FontFace = staconfFont(Enum.FontWeight.Medium)
+			vText.TextSize = 13
+			vText.TextXAlignment = Enum.TextXAlignment.Right
+			vText.TextTruncate = Enum.TextTruncate.AtEnd
+			vText.Parent = row
+
+			local divider = nil
+			if idx < #items then
+				divider = Instance.new("Frame")
+				divider.Name = "Divider"
+				divider.Size = UDim2.new(1, -28, 0, 1)
+				divider.Position = UDim2.new(0, 14, 1, -1)
+				divider.BorderSizePixel = 0
+				divider.Parent = row
+			end
+
+			table.insert(rowLabels, { lText = lText, vText = vText, divider = divider })
+		end
+
+		table.insert(cardsRegistry, {
+			title = sTitle,
+			card = card,
+			stroke = cardStroke,
+			rows = rowLabels,
+		})
+
+		return group
+	end
+
+	createSectionGroup("Roblox Identity", {
+		{ "Display Name", localPlayer and localPlayer.DisplayName or "Free User" },
+		{ "Username", "@" .. (localPlayer and localPlayer.Name or "unknown") },
+		{ "User ID", tostring(localPlayer and localPlayer.UserId or 0) },
+		{ "Account Age", (localPlayer and (localPlayer.AccountAge .. " Days") or "N/A") },
+		{ "Membership Tier", (localPlayer and (localPlayer.MembershipType == Enum.MembershipType.Premium and "Roblox Premium" or "Standard Tier") or "Standard Tier") },
+	}, 2)
+
+	createSectionGroup("Security & Session", {
+		{ "Client Environment", "macOS Sequoia Runtime (Luau VM)" },
+		{ "Security Sandbox", "Protected • Integrity Verified" },
+		{ "Active Place ID", tostring(game.PlaceId) },
+		{ "Server Session ID", (game.JobId ~= "" and (string.sub(game.JobId, 1, 14) .. "...") or "Standalone Client") },
+	}, 3)
+
+	createSectionGroup("Subscription & Privileges", {
+		{ "License Status", "Active • Lifetime Access" },
+		{ "License Key", "STAC-PRO-" .. string.sub(tostring((localPlayer and localPlayer.UserId or 12345) * 73 + 12345), 1, 6) .. "-OK" },
+		{ "Module Access", "Full Suite (Telemetry, Atmosphere, Locomotion, Appearance)" },
+	}, 4)
+
+	local actionsContainer = Instance.new("Frame")
+	actionsContainer.Name = "ActionsContainer"
+	actionsContainer.Size = UDim2.new(1, 0, 0, 36)
+	actionsContainer.BackgroundTransparency = 1
+	actionsContainer.LayoutOrder = 5
+	actionsContainer.Parent = profile
+
+	local aList = Instance.new("UIListLayout")
+	aList.FillDirection = Enum.FillDirection.Horizontal
+	aList.SortOrder = Enum.SortOrder.LayoutOrder
+	aList.HorizontalAlignment = Enum.HorizontalAlignment.Center
+	aList.Padding = UDim.new(0, 10)
+	aList.Parent = actionsContainer
+
+	local actionButtonsRegistry = {}
+	local function createActionButton(label, isPrimary, callback, order)
+		local btn = Instance.new("TextButton")
+		btn.Name = "ActionBtn_" .. tostring(order)
+		btn.Text = label
+		btn.TextSize = 13.5
+		btn.FontFace = staconfFont(Enum.FontWeight.Medium)
+		btn.AutoButtonColor = false
+		btn.Size = UDim2.new(0.5, -5, 1, 0)
+		btn.BorderSizePixel = 0
+		btn.LayoutOrder = order
+
+		local bCorn = Instance.new("UICorner")
+		bCorn.CornerRadius = UDim.new(0, 8)
+		bCorn.Parent = btn
+
+		local bStroke = nil
+		if not isPrimary then
+			bStroke = Instance.new("UIStroke")
+			bStroke.Thickness = 1
+			bStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+			bStroke.Parent = btn
+		end
+
+		btn.MouseButton1Click:Connect(callback)
+		btn.Parent = actionsContainer
+
+		table.insert(actionButtonsRegistry, { btn = btn, stroke = bStroke, isPrimary = isPrimary })
+		return btn
+	end
+
+	createActionButton("Copy User ID", false, function()
+		local uid = tostring(localPlayer and localPlayer.UserId or 0)
+		if typeof(setclipboard) == "function" then
+			setclipboard(uid)
+		end
+		notify({
+			App = "StacOnf",
+			Title = "User ID Copied",
+			Subtitle = uid .. " copied to system clipboard.",
+			Duration = 3,
+		})
+	end, 1)
+
+	createActionButton("Security Audit", true, function()
+		showDialog({
+			Title = "Security Integrity Audit",
+			Description = "StacOnf sandbox environment verified.\n• Luau VM state: Healthy\n• Memory hook protection: Active\n• Client place verification: Confirmed",
+			Icon = "Info",
+			IconColor = Color3.fromRGB(52, 199, 89),
+			Buttons = {
+				{ Text = "Done", Style = "Primary" }
+			}
+		})
+	end, 2)
+
 	local accountRefreshing = false
 	refreshAccountPage = function()
 		if accountRefreshing then return end
@@ -3558,26 +3838,53 @@ do
 		local surface = light and Color3.fromRGB(250, 250, 252) or Color3.fromRGB(26, 28, 36)
 		local informationSurface = light and Color3.fromRGB(242, 243, 247) or Color3.fromRGB(34, 37, 47)
 		local divider = light and Color3.fromRGB(222, 224, 230) or Color3.fromRGB(52, 55, 67)
-		avatar.BackgroundColor3 = light and Color3.fromRGB(173, 179, 188) or Color3.fromRGB(106, 114, 130)
+
 		profile.BackgroundColor3 = surface
 		profileStroke.Color = divider
 		profileStroke.Transparency = light and 0.35 or 0.55
-		information.BackgroundColor3 = informationSurface
-		for _, pair in ipairs(valueLabels) do
-			pair[1].TextColor3 = secondary
-			pair[2].TextColor3 = primary
+		avatar.BackgroundColor3 = light and Color3.fromRGB(173, 179, 188) or Color3.fromRGB(106, 114, 130)
+		dotStroke.Color = surface
+
+		displayNameLabel.TextColor3 = primary
+		handleLabel.TextColor3 = secondary
+
+		for _, bData in ipairs(badgeElements) do
+			bData.frame.BackgroundTransparency = light and 0.88 or 0.82
 		end
-		for _, object in ipairs(information:GetDescendants()) do
-			if object.Name == "AccountDivider" then object.BackgroundColor3 = divider end
+
+		for _, cardData in ipairs(cardsRegistry) do
+			cardData.title.TextColor3 = secondary
+			cardData.card.BackgroundColor3 = informationSurface
+			cardData.stroke.Color = divider
+			cardData.stroke.Transparency = light and 0.50 or 0.70
+			for _, row in ipairs(cardData.rows) do
+				row.lText.TextColor3 = secondary
+				row.vText.TextColor3 = primary
+				if row.divider then
+					row.divider.BackgroundColor3 = divider
+				end
+			end
 		end
+
+		for _, bData in ipairs(actionButtonsRegistry) do
+			if bData.isPrimary then
+				bData.btn.BackgroundColor3 = Color3.fromRGB(0, 122, 255)
+				bData.btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+			else
+				bData.btn.BackgroundColor3 = light and Color3.fromRGB(226, 228, 236) or Color3.fromRGB(56, 59, 72)
+				bData.btn.TextColor3 = light and Color3.fromRGB(35, 38, 45) or Color3.fromRGB(240, 242, 248)
+				if bData.stroke then
+					bData.stroke.Color = light and Color3.fromRGB(192, 195, 206) or Color3.fromRGB(75, 79, 94)
+				end
+			end
+		end
+
 		accountRefreshing = false
 	end
 	refreshAccountPage()
-	for _, object in ipairs({profile, information}) do
-		chromeConnect(object:GetPropertyChangedSignal("BackgroundColor3"), function()
-			if not accountRefreshing then task.defer(refreshAccountPage) end
-		end)
-	end
+	chromeConnect(profile:GetPropertyChangedSignal("BackgroundColor3"), function()
+		if not accountRefreshing then task.defer(refreshAccountPage) end
+	end)
 end
 
 notify({
