@@ -2,9 +2,11 @@
 
 ## Settings profiles
 
+The optional local SF Pro Display font uses the executor workspace files `Stac0nf/fonts/SFPRODISPLAYREGULAR.OTF`, `SFPRODISPLAYMEDIUM.OTF`, and `SFPRODISPLAYBOLD.OTF`. On startup, StacOnf creates `Stac0nf/fonts/SFProDisplay.family.json` using `getcustomasset` and applies it to its UI. If any font or filesystem capability is unavailable, it uses Inter instead. Font files are not included in this repository and are not downloaded from GitHub.
+
 The Settings tab supports named local profiles, Save, Load, Refresh, Delete, startup loading, and restoring session defaults. Overwrite, Delete, and Reset require a second click within four seconds. Profile names accept 1–32 ASCII letters, numbers, spaces, hyphens, or underscores.
 
-Profiles store 16 controls, including appearance, hotkey, camera, lighting, movement, and Glass Strength. Settings → Liquid Glass exposes a 1×–20× strength slider with a live multiplier label. The default is 4.5×; strength changes the main window curved lens depth and surface normals without changing window opacity. The lens uses an EditableMesh (434 vertices / 864 triangles), updated only when size, corner radius, or strength changes. Unsupported environments fall back to the supplied glass meshes. Existing profiles without this field leave the current strength unchanged. Loading applies the existing control callbacks. Pointer modal demo controls and account information are not included. Reset restores values captured when this script started; saved profiles are retained.
+Profiles store 16 controls, including appearance, hotkey, camera, lighting, movement, and Glass Strength. Settings → Liquid Glass exposes a 1×–20× strength slider with a live multiplier label. The default is 4.5×; strength changes the main window curved lens depth and surface normals. The main window uses restrained translucent dark/light theme tints over a subtle glass layer; individual control cards retain their backgrounds for readability. The lens uses an EditableMesh (434 vertices / 864 triangles), updated only when size, corner radius, or strength changes. Unsupported environments fall back to the supplied glass meshes. Existing profiles without this field leave the current strength unchanged. Loading applies the existing control callbacks. Pointer modal demo controls and account information are not included. Reset restores values captured when this script started; saved profiles are retained.
 
 Curved-glass validation: isolated in-client previews at 1× and 20×, plus a non-refracting material control, used temporary straight background bars at unchanged 0.08 panel transparency. The 20× lens visibly curved the bars at graphics quality 10. Hide/show and teardown passed; temporary geometry was removed. This is not a guarantee of identical results on other graphics settings or executors. The complete application was not re-executed during this test.
 
@@ -50,8 +52,8 @@ loadstring(game:HttpGet("https://raw.githubusercontent.com/x8lua/Staconf/main/in
 
 ### StacOnf Sequoia Deck (`staconf_demo.luau`)
 - **macOS Sequoia Window Architecture**: Traffic light window controls, sidebar search above a local Sign in panel, draggable and resizable frames.
-- **Compact Sidebar**: Semibold SF Pro tab titles, 2px tab gaps, solid sidebar/content surfaces without a seam divider, and one rounded outer clip. Sign in toggles a local demo account only; it does not authenticate or send credentials.
-- **Responsive Pointer Panel**: SF Pro typography, synchronized theme colors, animated toggles and buttons, and a draggable slider with concise motion feedback.
+- **Compact Sidebar**: Semibold Inter tab titles, 2px tab gaps, themed sidebar/content surfaces without a seam divider, and one rounded outer clip. Sign in toggles a local demo account only; it does not authenticate or send credentials.
+- **Responsive Pointer Panel**: Inter typography, synchronized theme colors, animated toggles and buttons, and a draggable slider with concise motion feedback.
 - **Multi-Matrix Routing**:
   - **Runtime Matrix**: Real-time Field of View slider, low-latency render toggles, engine ping, and instant GC memory collector.
   - **Environment**: Real-time ClockTime scrubber, global shadow switches, and ambient lighting presets.

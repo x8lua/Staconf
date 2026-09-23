@@ -66,6 +66,87 @@ local function getAsset(fileName, rawUrl)
 	return rawUrl
 end
 
+local defaultFontFamily = "rbxassetid://12187365364"
+local customFontFamily
+local function loadLocalFontFamily()
+	if typeof(isfile) ~= "function" or typeof(writefile) ~= "function" or typeof(getcustomasset) ~= "function" then return end
+	local folder = "Stac0nf/fonts/"
+	if typeof(makefolder) == "function" then
+		pcall(function()
+			makefolder("Stac0nf")
+			makefolder(folder)
+		end)
+	end
+	local baseUrl = "https://raw.githubusercontent.com/x8lua/Staconf/main/assets/fonts/"
+	local fontWeights = {
+		{ name = "Regular", weight = 400, style = "normal", file = "regular.otf", alias = "SFPRODISPLAYREGULAR.OTF" },
+		{ name = "Medium", weight = 500, style = "normal", file = "medium.otf", alias = "SFPRODISPLAYMEDIUM.OTF" },
+		{ name = "Bold", weight = 700, style = "normal", file = "bold.otf", alias = "SFPRODISPLAYBOLD.OTF" },
+		{ name = "LightItalic", weight = 300, style = "italic", file = "lightitalic.otf" },
+		{ name = "SemiBoldItalic", weight = 600, style = "italic", file = "semibolditalic.otf" },
+		{ name = "HeavyItalic", weight = 800, style = "italic", file = "heavyitalic.otf" },
+		{ name = "BlackItalic", weight = 900, style = "italic", file = "blackitalic.otf" },
+		{ name = "ThinItalic", weight = 100, style = "italic", file = "thinitalic.otf" },
+		{ name = "UltraLightItalic", weight = 200, style = "italic", file = "ultralightitalic.otf" },
+	}
+	for _, font in ipairs(fontWeights) do
+		local path = folder .. font.file
+		local aliasPath = font.alias and (folder .. font.alias)
+		local hasFile = isfile(path) or (aliasPath and isfile(aliasPath))
+		if not hasFile then
+			local s, data = pcall(function()
+				return game:HttpGetAsync(baseUrl .. font.file)
+			end)
+			if s and data and #data > 0 then
+				pcall(function()
+					writefile(path, data)
+					if aliasPath then writefile(aliasPath, data) end
+				end)
+			end
+		end
+	end
+	local ok, family = pcall(function()
+		local faces = {}
+		local core = {
+			{ name = "Regular", weight = 400, style = "normal", file = "regular.otf", alias = "SFPRODISPLAYREGULAR.OTF" },
+			{ name = "Medium", weight = 500, style = "normal", file = "medium.otf", alias = "SFPRODISPLAYMEDIUM.OTF" },
+			{ name = "Bold", weight = 700, style = "normal", file = "bold.otf", alias = "SFPRODISPLAYBOLD.OTF" },
+		}
+		for _, font in ipairs(core) do
+			local targetPath = folder .. font.file
+			if not isfile(targetPath) and font.alias and isfile(folder .. font.alias) then
+				targetPath = folder .. font.alias
+			end
+			assert(isfile(targetPath), "Missing local font: " .. targetPath)
+			table.insert(faces, {
+				name = font.name,
+				weight = font.weight,
+				style = font.style or "normal",
+				assetId = getcustomasset(targetPath),
+			})
+		end
+		local path = folder .. "SFProDisplay.family.json"
+		writefile(path, game:GetService("HttpService"):JSONEncode({ name = "SF Pro Display", faces = faces }))
+		local asset = getcustomasset(path)
+		Font.new(asset, Enum.FontWeight.Regular)
+		return asset
+	end)
+	if ok then customFontFamily = family else warn("StacOnf: local font unavailable; using Inter. " .. tostring(family)) end
+end
+loadLocalFontFamily()
+
+local function staconfFont(weight, style)
+	return Font.new(customFontFamily or defaultFontFamily, weight or Enum.FontWeight.Regular, style or Enum.FontStyle.Normal)
+end
+
+local function applyLocalFont(object)
+	if not customFontFamily then return end
+	if object:IsA("TextLabel") or object:IsA("TextButton") or object:IsA("TextBox") then
+		local old = object.FontFace
+		object.FontFace = staconfFont(old.Weight, old.Style)
+	end
+end
+
 local function titledRow(parent, title, subtitle)
 	local row = parent:Row({
 		SearchIndex = title,
@@ -84,6 +165,9 @@ local app = cascade.New({
 })
 
 app.__instance.Name = "StacOnf"
+app.__instance.DescendantAdded:Connect(function(object)
+	if customFontFamily then task.defer(applyLocalFont, object) end
+end)
 
 local window = app:Window({
 	Title = "StacOnf",
@@ -98,6 +182,33 @@ local window = app:Window({
 	Dropshadow = true,
 	UIBlur = true,
 })
+
+local unloading = false
+local unloadActions = {}
+local function onUnload(action)
+	table.insert(unloadActions, action)
+end
+
+local function unloadStacOnf(fromDestroy)
+	if unloading then return end
+	unloading = true
+	for index = #unloadActions, 1, -1 do
+		pcall(unloadActions[index])
+	end
+	table.clear(unloadActions)
+	local owner = app.__instance
+	local parent = owner.Parent
+	local notifications = parent and parent:FindFirstChild("StacOnfNotifications")
+	if notifications then notifications:Destroy() end
+	if not fromDestroy and owner.Parent then owner:Destroy() end
+end
+
+app.__instance.Destroying:Connect(function()
+	unloadStacOnf(true)
+end)
+window.Destroying:Connect(function()
+	task.defer(unloadStacOnf)
+end)
 
 
 local currentMode = "Dark"
@@ -280,8 +391,9 @@ local function createNotificationGlass(gui, scale, options)
 				local part = item.lens.Part
 				part.Size = Vector3.new(width, height, thickness)
 				part.CFrame = CFrame.new(world + cam.ZVector * thickness * 0.4) * cam.Rotation
-				part.Color = Color3.fromRGB(220, 228, 240)
-				part.Transparency = 0.86 + 0.14 * transparency
+				part.Color = currentMode == "Light" and Color3.fromRGB(246, 248, 252) or Color3.fromRGB(146, 158, 182)
+				local base = currentMode == "Light" and math.max(options.Transparency or 0.86, 0.97) or (options.Transparency or 0.86)
+				part.Transparency = base + (1 - base) * transparency
 			else
 			for index, spec in ipairs(item.layout) do
 				local part = item.parts[index]
@@ -523,7 +635,7 @@ local function createNotificationCenter(owner, parent)
 		local label = Instance.new("TextLabel")
 		label.Name = name
 		label.BackgroundTransparency = 1
-		label.FontFace = Font.new("rbxassetid://12187365364", weight)
+		label.FontFace = staconfFont(weight)
 		label.Text = text
 		label.TextSize = size
 		label.TextColor3 = Color3.fromRGB(32, 43, 51)
@@ -626,6 +738,11 @@ local function createNotificationCenter(owner, parent)
 end
 
 local notify, refreshNotificationTheme = createNotificationCenter(app.__instance, app.__instance.Parent)
+onUnload(function()
+	local parent = app.__instance.Parent
+	local notifications = parent and parent:FindFirstChild("StacOnfNotifications")
+	if notifications then notifications:Destroy() end
+end)
 window.Destroying:Connect(function()
 	local parent = app.__instance.Parent
 	local gui = parent and parent:FindFirstChild("StacOnfNotifications")
@@ -645,9 +762,12 @@ window.Destroying:Connect(function()
 		acrylicBlur:Destroy()
 	end
 end)
+onUnload(function()
+	if acrylicBlur and acrylicBlur.Parent then acrylicBlur:Destroy() end
+end)
 
 local minimizeKey = Enum.KeyCode.RightControl
-userInputService.InputEnded:Connect(function(input, processed)
+local minimizeConnection = userInputService.InputEnded:Connect(function(input, processed)
 	if input.KeyCode == minimizeKey and not processed then
 		window.Minimized = not window.Minimized
 		if acrylicBlur then
@@ -655,6 +775,7 @@ userInputService.InputEnded:Connect(function(input, processed)
 		end
 	end
 end)
+onUnload(function() minimizeConnection:Disconnect() end)
 
 local currentStacOnfGui = nil
 
@@ -731,6 +852,12 @@ gradTopVal.Changed:Connect(onGradientValueChanged)
 gradBottomVal.Changed:Connect(onGradientValueChanged)
 gradTopTransVal.Changed:Connect(onGradientValueChanged)
 gradBottomTransVal.Changed:Connect(onGradientValueChanged)
+onUnload(function()
+	gradTopVal:Destroy()
+	gradBottomVal:Destroy()
+	gradTopTransVal:Destroy()
+	gradBottomTransVal:Destroy()
+end)
 
 local modalDimmer = nil
 local middlePanel = nil
@@ -818,6 +945,12 @@ end
 
 _G.StacOnfOpenMiddlePanel = openMiddlePanel
 _G.StacOnfCloseMiddlePanel = closeMiddlePanel
+onUnload(function()
+	if _G.StacOnfOpenMiddlePanel == openMiddlePanel then _G.StacOnfOpenMiddlePanel = nil end
+	if _G.StacOnfCloseMiddlePanel == closeMiddlePanel then _G.StacOnfCloseMiddlePanel = nil end
+	for _, connection in ipairs(modalConnections) do connection:Disconnect() end
+	table.clear(modalConnections)
+end)
 
 local function createMiddlePanel(targetGui)
 	local body = targetGui:FindFirstChild("Body", true)
@@ -880,7 +1013,7 @@ local function createMiddlePanel(targetGui)
 	titleLabel.Name = "Title"
 	titleLabel.Text = "Pointer Control"
 	titleLabel.TextSize = 16
-	titleLabel.FontFace = Font.new("rbxassetid://12187365364", Enum.FontWeight.SemiBold)
+	titleLabel.FontFace = staconfFont(Enum.FontWeight.SemiBold)
 	titleLabel.TextColor3 = (currentMode == "Light" and Color3.fromRGB(30, 30, 30) or Color3.fromRGB(255, 255, 255))
 	titleLabel.TextXAlignment = Enum.TextXAlignment.Left
 	titleLabel.BackgroundTransparency = 1
@@ -918,7 +1051,7 @@ local function createMiddlePanel(targetGui)
 		local lbl = Instance.new("TextLabel")
 		lbl.Text = title
 		lbl.TextSize = 15
-		lbl.FontFace = Font.new("rbxassetid://12187365364", Enum.FontWeight.Regular)
+		lbl.FontFace = staconfFont(Enum.FontWeight.Regular)
 		lbl.TextColor3 = (currentMode == "Light" and Color3.fromRGB(35, 35, 35) or Color3.fromRGB(235, 235, 235))
 		lbl.TextXAlignment = Enum.TextXAlignment.Left
 		lbl.AnchorPoint = Vector2.new(0, 0.5)
@@ -1000,7 +1133,7 @@ local function createMiddlePanel(targetGui)
 	local sLbl = Instance.new("TextLabel")
 	sLbl.Text = "Scroll speed"
 	sLbl.TextSize = 15
-	sLbl.FontFace = Font.new("rbxassetid://12187365364", Enum.FontWeight.Regular)
+	sLbl.FontFace = staconfFont(Enum.FontWeight.Regular)
 	sLbl.TextColor3 = (currentMode == "Light" and Color3.fromRGB(35, 35, 35) or Color3.fromRGB(235, 235, 235))
 	sLbl.TextXAlignment = Enum.TextXAlignment.Left
 	sLbl.AnchorPoint = Vector2.new(0, 0.5)
@@ -1052,7 +1185,7 @@ local function createMiddlePanel(targetGui)
 
 	local turtleLbl = Instance.new("TextLabel")
 	turtleLbl.Text = "−"
-	turtleLbl.FontFace = Font.new("rbxassetid://12187365364")
+	turtleLbl.FontFace = staconfFont()
 	turtleLbl.TextSize = 13
 	turtleLbl.BackgroundTransparency = 1
 	turtleLbl.AnchorPoint = Vector2.new(1, 0.5)
@@ -1062,7 +1195,7 @@ local function createMiddlePanel(targetGui)
 
 	local hareLbl = Instance.new("TextLabel")
 	hareLbl.Text = "+"
-	hareLbl.FontFace = Font.new("rbxassetid://12187365364")
+	hareLbl.FontFace = staconfFont()
 	hareLbl.TextSize = 13
 	hareLbl.BackgroundTransparency = 1
 	hareLbl.AnchorPoint = Vector2.new(1, 0.5)
@@ -1131,7 +1264,7 @@ local function createMiddlePanel(targetGui)
 	local dLbl = Instance.new("TextLabel")
 	dLbl.Text = "Dragging style"
 	dLbl.TextSize = 15
-	dLbl.FontFace = Font.new("rbxassetid://12187365364", Enum.FontWeight.Regular)
+	dLbl.FontFace = staconfFont(Enum.FontWeight.Regular)
 	dLbl.TextColor3 = (currentMode == "Light" and Color3.fromRGB(35, 35, 35) or Color3.fromRGB(235, 235, 235))
 	dLbl.TextXAlignment = Enum.TextXAlignment.Left
 	dLbl.AnchorPoint = Vector2.new(0, 0.5)
@@ -1143,7 +1276,7 @@ local function createMiddlePanel(targetGui)
 	local styleVal = Instance.new("TextLabel")
 	styleVal.Text = "Without Drag Lock"
 	styleVal.TextSize = 13
-	styleVal.FontFace = Font.new("rbxassetid://12187365364", Enum.FontWeight.Regular)
+	styleVal.FontFace = staconfFont(Enum.FontWeight.Regular)
 	styleVal.TextColor3 = (currentMode == "Light" and Color3.fromRGB(130, 133, 140) or Color3.fromRGB(150, 155, 170))
 	styleVal.TextXAlignment = Enum.TextXAlignment.Right
 	styleVal.AnchorPoint = Vector2.new(1, 0.5)
@@ -1165,7 +1298,7 @@ local function createMiddlePanel(targetGui)
 	cancelBtn.Name = "Cancel"
 	cancelBtn.Text = "Cancel"
 	cancelBtn.TextSize = 13
-	cancelBtn.FontFace = Font.new("rbxassetid://12187365364", Enum.FontWeight.Regular)
+	cancelBtn.FontFace = staconfFont(Enum.FontWeight.Regular)
 	cancelBtn.TextColor3 = (currentMode == "Light" and Color3.fromRGB(40, 40, 40) or Color3.fromRGB(240, 240, 240))
 	cancelBtn.BackgroundColor3 = (currentMode == "Light" and Color3.fromRGB(236, 238, 244) or Color3.fromRGB(45, 48, 60))
 	cancelBtn.BorderSizePixel = 0
@@ -1182,7 +1315,7 @@ local function createMiddlePanel(targetGui)
 	okBtn.Name = "OK"
 	okBtn.Text = "OK"
 	okBtn.TextSize = 13
-	okBtn.FontFace = Font.new("rbxassetid://12187365364", Enum.FontWeight.SemiBold)
+	okBtn.FontFace = staconfFont(Enum.FontWeight.SemiBold)
 	okBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 	okBtn.BackgroundColor3 = Color3.fromRGB(0, 122, 255)
 	okBtn.BorderSizePixel = 0
@@ -1255,6 +1388,7 @@ local function createMiddlePanel(targetGui)
 end
 
 local refreshSidebarChrome
+local refreshSidebarSelection
 local refreshAccountPage
 local accountTab
 local chromeConnections = {}
@@ -1346,12 +1480,13 @@ local function installSidebarChrome(targetGui)
 	local windowGlass = createNotificationGlass(targetGui, { Scale = 1 }, {
 		Name = "StacOnfWindowGlass",
 		Curved = true,
-		Transparency = 0.86,
+		Transparency = 0.90,
 		GetThickness = windowGlassThickness,
 		HighlightTransparency = 0.99,
 		Depth = 0.8,
 	})
 	local hasWindowGlass = windowGlass.Add(surface)
+	onUnload(windowGlass.Destroy)
 	chromeConnect(surface.Destroying, windowGlass.Destroy)
 	chromeConnect(window.Destroying, windowGlass.Destroy)
 	local layout = body:FindFirstChildOfClass("UIListLayout")
@@ -1423,7 +1558,7 @@ local function installSidebarChrome(targetGui)
 		label.Position = UDim2.fromOffset(50, y)
 		label.BackgroundTransparency = 1
 		label.TextXAlignment = Enum.TextXAlignment.Left
-		label.FontFace = Font.new("rbxassetid://12187365364", weight)
+		label.FontFace = staconfFont(weight)
 		label.TextSize = size
 		label.TextTruncate = Enum.TextTruncate.AtEnd
 		label.Parent = signIn
@@ -1482,11 +1617,11 @@ local function installSidebarChrome(targetGui)
 		refreshing = true
 		local light = currentMode == "Light"
 		body.BackgroundTransparency = 1
-		sidebar.BackgroundTransparency = hasWindowGlass and (light and 0.17 or 0.12) or 0
-		sidebar.BackgroundColor3 = light and Color3.fromRGB(239, 240, 244) or Color3.fromRGB(29, 31, 39)
-		content.BackgroundTransparency = hasWindowGlass and (light and 0.12 or 0.08) or 0
-		content.BackgroundColor3 = light and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(20, 22, 29)
-		searchBody.BackgroundColor3 = light and Color3.fromRGB(226, 230, 236) or Color3.fromRGB(43, 46, 57)
+		sidebar.BackgroundTransparency = hasWindowGlass and (light and 0.10 or 0.18) or 0
+		sidebar.BackgroundColor3 = light and Color3.fromRGB(236, 239, 244) or Color3.fromRGB(24, 28, 40)
+		content.BackgroundTransparency = hasWindowGlass and (light and 0.08 or 0.21) or 0
+		content.BackgroundColor3 = light and Color3.fromRGB(249, 250, 252) or Color3.fromRGB(17, 20, 30)
+		searchBody.BackgroundColor3 = light and Color3.fromRGB(247, 248, 250) or Color3.fromRGB(43, 46, 57)
 		searchBody.BackgroundTransparency = 0
 		avatar.BackgroundColor3 = light and Color3.fromRGB(173, 179, 188) or Color3.fromRGB(106, 114, 130)
 		title.TextColor3 = light and Color3.fromRGB(37, 40, 48) or Color3.fromRGB(244, 245, 249)
@@ -1514,7 +1649,13 @@ local function applyModernVisuals(targetGui)
 	currentStacOnfGui = targetGui
 	local function updateVisual(obj)
 		if not obj.Parent then return end
-		if obj:IsA("UICorner") then
+		if obj:IsA("TextLabel") and (obj.Name == "Title" or obj.Name == "Subtitle") and obj.Parent and obj.Parent.Name == "TitleStack" and (not targetGui:FindFirstChild("Sidebar", true) or not obj:IsDescendantOf(targetGui:FindFirstChild("Sidebar", true))) then
+			if obj.Name == "Title" and obj.TextSize == 15 then obj.TextSize = 16 end
+			if obj.Name == "Subtitle" and obj.TextSize == 13 then
+				obj.TextSize = 14
+				obj.Size = UDim2.new(obj.Size.X.Scale, obj.Size.X.Offset, obj.Size.Y.Scale, 16)
+			end
+		elseif obj:IsA("UICorner") then
 			local owner = obj.Parent
 			if owner.Name == "Body" then obj.CornerRadius = UDim.new(0, 22)
 			elseif owner.Name == "ContentBody" or owner.Name == "Toolbar" or owner.Name == "Sidebar" then
@@ -1643,6 +1784,9 @@ local function applyModernVisuals(targetGui)
 			end
 		elseif obj.Name == "SidebarItem" and (obj:IsA("TextButton") or obj:IsA("Frame")) then
 			obj.Size = UDim2.new(1, 0, 0, userInputService.TouchEnabled and 44 or 32)
+			chromeConnect(obj:GetPropertyChangedSignal("BackgroundTransparency"), function()
+				if refreshSidebarSelection then task.defer(refreshSidebarSelection) end
+			end)
 			local leading = obj:FindFirstChild("Leading")
 			local titleObj = leading and leading:FindFirstChild("Title")
 			local badge = leading and leading:FindFirstChild("BadgeBackground")
@@ -1692,10 +1836,28 @@ local function applyModernVisuals(targetGui)
 	for _, descendant in ipairs(targetGui:GetDescendants()) do
 		updateVisual(descendant)
 	end
+	if customFontFamily then
+		for _, descendant in ipairs(targetGui:GetDescendants()) do applyLocalFont(descendant) end
+	end
 	installSidebarChrome(targetGui)
+	refreshSidebarSelection = function()
+		if not targetGui.Parent then return end
+		for _, item in ipairs(targetGui:GetDescendants()) do
+			if item.Name == "SidebarItem" and item:IsA("GuiObject") then
+				local selected = item.BackgroundTransparency < 0.5
+				item.BackgroundColor3 = currentMode == "Light" and Color3.fromRGB(226, 227, 230) or Color3.fromRGB(10, 130, 255)
+				local title = item:FindFirstChild("Title", true)
+				if selected and title and title:IsA("TextLabel") then
+					title.TextColor3 = currentMode == "Light" and Color3.fromRGB(30, 31, 34) or Color3.new(1, 1, 1)
+				end
+			end
+		end
+	end
+	refreshSidebarSelection()
 
 	chromeConnect(targetGui.DescendantAdded, function(descendant)
 		task.defer(updateVisual, descendant)
+		if customFontFamily then task.defer(applyLocalFont, descendant) end
 	end)
 end
 
@@ -1764,6 +1926,7 @@ local function smoothTransition(newMode, newAccentName)
 
 	refreshNotificationTheme()
 	if refreshSidebarChrome then refreshSidebarChrome() end
+	if refreshSidebarSelection then refreshSidebarSelection() end
 	if refreshMiddlePanel then refreshMiddlePanel() end
 	if refreshAccountPage then refreshAccountPage() end
 	task.defer(function()
@@ -1796,9 +1959,19 @@ local function smoothTransition(newMode, newAccentName)
 			end
 		end
 	end)
+	if newMode then
+		task.delay(0.42, function()
+			if currentMode == newMode and refreshSidebarSelection then refreshSidebarSelection() end
+		end)
+	end
 end
 
 _G.StacOnfSmoothTransition = smoothTransition
+onUnload(function()
+	if _G.StacOnfSmoothTransition == smoothTransition then _G.StacOnfSmoothTransition = nil end
+	for _, connection in ipairs(chromeConnections) do connection:Disconnect() end
+	table.clear(chromeConnections)
+end)
 
 task.defer(function()
 	local targets = {}
@@ -2465,6 +2638,14 @@ do
 			end)
 		end,
 	})
+	local cleanup = settingsTab:PageSection({ Title = "Uninstall" }):Form()
+	titledRow(cleanup, "Unload StacOnf", "Removes this UI and its effects; saved profiles remain."):Right():Button({
+		Label = "Unload", State = "Destructive",
+		Pushed = function()
+			if not confirm("unload StacOnf") then return end
+			task.defer(unloadStacOnf)
+		end,
+	})
 	status = management:Row({ SearchIndex = "Storage status" }):Left():Label({ Text = "Profiles are stored locally on this device." })
 	local ok, message = pcall(readDatabase)
 	healthy = ok
@@ -2578,7 +2759,7 @@ do
 		label.Position = UDim2.fromOffset(16, 8)
 		label.Size = UDim2.new(1, -32, 0, 16)
 		label.BackgroundTransparency = 1
-		label.FontFace = Font.new("rbxassetid://12187365364", Enum.FontWeight.Regular)
+		label.FontFace = staconfFont(Enum.FontWeight.Regular)
 		label.TextSize = 12
 		label.TextXAlignment = Enum.TextXAlignment.Left
 		label.Parent = row
@@ -2587,7 +2768,7 @@ do
 		value.Position = UDim2.fromOffset(16, 25)
 		value.Size = UDim2.new(1, -32, 0, 20)
 		value.BackgroundTransparency = 1
-		value.FontFace = Font.new("rbxassetid://12187365364", Enum.FontWeight.Regular)
+		value.FontFace = staconfFont(Enum.FontWeight.Regular)
 		value.TextSize = 15
 		value.TextXAlignment = Enum.TextXAlignment.Left
 		value.TextTruncate = Enum.TextTruncate.AtEnd
