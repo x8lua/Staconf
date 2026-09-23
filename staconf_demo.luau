@@ -1205,10 +1205,11 @@ local function showDialog(options)
 	titleLabel.Parent = card
 
 	local descLabel = nil
-	if options.Description and #options.Description > 0 then
+	local descText = options.Description or options.Content
+	if descText and #descText > 0 then
 		descLabel = Instance.new("TextLabel")
 		descLabel.Name = "Description"
-		descLabel.Text = options.Description
+		descLabel.Text = descText
 		descLabel.Size = UDim2.new(1, 0, 0, 0)
 		descLabel.AutomaticSize = Enum.AutomaticSize.Y
 		descLabel.FontFace = staconfFont(Enum.FontWeight.Regular)
@@ -1323,10 +1324,19 @@ local function showDialog(options)
 	bList.Padding = UDim.new(0, 10)
 	bList.Parent = btnRow
 
-	local buttonDefs = options.Buttons or {
-		{ Text = "Cancel", Style = "Secondary" },
-		{ Text = "OK", Style = "Primary" },
-	}
+	local buttonDefs = options.Buttons
+	if not buttonDefs then
+		if options.Type == "Alert" then
+			buttonDefs = {
+				{ Text = options.ConfirmText or "OK", Style = "Primary" }
+			}
+		else
+			buttonDefs = {
+				{ Text = options.CancelText or "Cancel", Style = "Secondary" },
+				{ Text = options.ConfirmText or "OK", Style = "Primary" }
+			}
+		end
+	end
 
 	local btnCount = #buttonDefs
 	local dialogHandle = {}
