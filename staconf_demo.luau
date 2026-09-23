@@ -1098,8 +1098,8 @@ local function showDialog(options)
 	card.AutomaticSize = Enum.AutomaticSize.Y
 	card.BorderSizePixel = 0
 	card.ZIndex = 3
-	card.BackgroundColor3 = isLight and Color3.fromRGB(242, 243, 247) or Color3.fromRGB(34, 37, 47)
-	card.BackgroundTransparency = isLight and 0.48 or 0.32
+	card.BackgroundColor3 = isLight and Color3.fromRGB(246, 247, 250) or Color3.fromRGB(26, 28, 36)
+	card.BackgroundTransparency = isLight and 0.18 or 0.10
 	card.Parent = cardWrapper
 
 	local cardCorner = Instance.new("UICorner")
