@@ -4,6 +4,7 @@ local lighting = game:GetService("Lighting")
 local userInputService = game:GetService("UserInputService")
 local workspaceService = game:GetService("Workspace")
 local tweenService = game:GetService("TweenService")
+local textService = game:GetService("TextService")
 
 local localPlayer = players.LocalPlayer or players:GetPropertyChangedSignal("LocalPlayer"):Wait()
 
@@ -1041,6 +1042,64 @@ onUnload(function()
 	end
 end)
 
+local function wrapDialogText(text, textSize, maxWidth)
+	if not text or text == "" then return "" end
+	local paragraphs = string.split(tostring(text), "\n")
+	local finalLines = {}
+
+	for _, para in ipairs(paragraphs) do
+		if para == "" then
+			table.insert(finalLines, "")
+		else
+			local tokens = {}
+			local currentWord = ""
+			for first, last in utf8.graphemes(para) do
+				local ch = string.sub(para, first, last)
+				local b = string.byte(ch)
+				if ch == " " then
+					if currentWord ~= "" then
+						table.insert(tokens, currentWord)
+						currentWord = ""
+					end
+					table.insert(tokens, " ")
+				elseif b and b < 128 and ch:match("[%w%p]") then
+					currentWord = currentWord .. ch
+				else
+					if currentWord ~= "" then
+						table.insert(tokens, currentWord)
+						currentWord = ""
+					end
+					table.insert(tokens, ch)
+				end
+			end
+			if currentWord ~= "" then
+				table.insert(tokens, currentWord)
+			end
+
+			local currentLine = ""
+			for _, tok in ipairs(tokens) do
+				local testLine = currentLine .. tok
+				local sz = textService:GetTextSize(testLine, textSize, Enum.Font.BuilderSans, Vector2.new(10000, 10000))
+				if sz.X <= maxWidth or currentLine == "" then
+					currentLine = testLine
+				else
+					table.insert(finalLines, (currentLine:gsub("%s+$", "")))
+					if tok == " " then
+						currentLine = ""
+					else
+						currentLine = tok
+					end
+				end
+			end
+			if currentLine ~= "" then
+				table.insert(finalLines, (currentLine:gsub("%s+$", "")))
+			end
+		end
+	end
+
+	return table.concat(finalLines, "\n")
+end
+
 local function showDialog(options)
 	options = options or {}
 	local parentGui = (app and app.__instance and app.__instance.Parent and app.__instance) or getDialogGui()
@@ -1183,13 +1242,13 @@ local function showDialog(options)
 
 	local titleLabel = Instance.new("TextLabel")
 	titleLabel.Name = "Title"
-	titleLabel.Text = options.Title or "Alert"
+	titleLabel.Text = wrapDialogText(options.Title or "Alert", 14.5, cardWidth - 40)
 	titleLabel.Size = UDim2.new(1, 0, 0, 0)
 	titleLabel.AutomaticSize = Enum.AutomaticSize.Y
 	titleLabel.FontFace = staconfFont(Enum.FontWeight.Medium)
 	titleLabel.TextSize = 14.5
 	titleLabel.LineHeight = 1.15
-	titleLabel.TextWrapped = true
+	titleLabel.TextWrapped = false
 	titleLabel.TextScaled = false
 	titleLabel.TextXAlignment = Enum.TextXAlignment.Center
 	titleLabel.TextColor3 = isLight and Color3.fromRGB(37, 40, 48) or Color3.fromRGB(244, 245, 249)
@@ -1203,13 +1262,13 @@ local function showDialog(options)
 	if descText and #descText > 0 then
 		descLabel = Instance.new("TextLabel")
 		descLabel.Name = "Description"
-		descLabel.Text = descText
+		descLabel.Text = wrapDialogText(descText, 12.5, cardWidth - 40)
 		descLabel.Size = UDim2.new(1, 0, 0, 0)
 		descLabel.AutomaticSize = Enum.AutomaticSize.Y
 		descLabel.FontFace = staconfFont(Enum.FontWeight.Regular)
 		descLabel.TextSize = 12.5
 		descLabel.LineHeight = 1.2
-		descLabel.TextWrapped = true
+		descLabel.TextWrapped = false
 		descLabel.TextScaled = false
 		descLabel.TextXAlignment = Enum.TextXAlignment.Center
 		descLabel.TextColor3 = isLight and Color3.fromRGB(108, 113, 125) or Color3.fromRGB(169, 174, 189)
@@ -1223,13 +1282,13 @@ local function showDialog(options)
 	if options.Footnote and #options.Footnote > 0 then
 		footnoteLabel = Instance.new("TextLabel")
 		footnoteLabel.Name = "Footnote"
-		footnoteLabel.Text = options.Footnote
+		footnoteLabel.Text = wrapDialogText(options.Footnote, 11, cardWidth - 40)
 		footnoteLabel.Size = UDim2.new(1, 0, 0, 0)
 		footnoteLabel.AutomaticSize = Enum.AutomaticSize.Y
 		footnoteLabel.FontFace = staconfFont(Enum.FontWeight.Regular)
 		footnoteLabel.TextSize = 11
 		footnoteLabel.LineHeight = 1.15
-		footnoteLabel.TextWrapped = true
+		footnoteLabel.TextWrapped = false
 		footnoteLabel.TextScaled = false
 		footnoteLabel.TextXAlignment = Enum.TextXAlignment.Center
 		footnoteLabel.TextColor3 = isLight and Color3.fromRGB(130, 134, 145) or Color3.fromRGB(145, 150, 165)
@@ -1437,9 +1496,13 @@ local function showDialog(options)
 	dialogHandle.Wrapper = cardWrapper
 	dialogHandle.Container = dialogContainer
 	dialogHandle.ApplyTheme = applyTheme
-	dialogHandle.SetTitle = function(newTitle) titleLabel.Text = newTitle end
+	dialogHandle.SetTitle = function(newTitle)
+		titleLabel.Text = wrapDialogText(newTitle, 14.5, cardWidth - 40)
+	end
 	dialogHandle.SetDescription = function(newDesc)
-		if descLabel then descLabel.Text = newDesc end
+		if descLabel then
+			descLabel.Text = wrapDialogText(newDesc, 12.5, cardWidth - 40)
+		end
 	end
 	dialogHandle.GetInputs = function()
 		local res = {}
