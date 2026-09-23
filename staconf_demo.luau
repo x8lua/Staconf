@@ -3817,6 +3817,7 @@ do
 
 	createActionButton("Security Audit", true, function()
 		showDialog({
+			Modal = true,
 			Title = "Security Integrity Audit",
 			Description = "StacOnf sandbox environment verified.\n• Luau VM state: Healthy\n• Memory hook protection: Active\n• Client place verification: Confirmed",
 			Icon = "Info",
