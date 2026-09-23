@@ -1211,7 +1211,7 @@ local function showDialog(options)
 	titleLabel.Size = UDim2.new(1, 0, 0, 0)
 	titleLabel.AutomaticSize = Enum.AutomaticSize.Y
 	titleLabel.FontFace = staconfFont(Enum.FontWeight.Bold)
-	titleLabel.TextSize = 17.5
+	titleLabel.TextSize = 18
 	titleLabel.LineHeight = 1.18
 	titleLabel.TextWrapped = true
 	titleLabel.TextXAlignment = Enum.TextXAlignment.Center
@@ -1229,7 +1229,7 @@ local function showDialog(options)
 		descLabel.Size = UDim2.new(1, 0, 0, 0)
 		descLabel.AutomaticSize = Enum.AutomaticSize.Y
 		descLabel.FontFace = staconfFont(Enum.FontWeight.Regular)
-		descLabel.TextSize = 14.5
+		descLabel.TextSize = 15
 		descLabel.LineHeight = 1.25
 		descLabel.TextWrapped = true
 		descLabel.TextXAlignment = Enum.TextXAlignment.Center
@@ -1248,7 +1248,7 @@ local function showDialog(options)
 		footnoteLabel.Size = UDim2.new(1, 0, 0, 0)
 		footnoteLabel.AutomaticSize = Enum.AutomaticSize.Y
 		footnoteLabel.FontFace = staconfFont(Enum.FontWeight.Regular)
-		footnoteLabel.TextSize = 12.5
+		footnoteLabel.TextSize = 13
 		footnoteLabel.LineHeight = 1.15
 		footnoteLabel.TextWrapped = true
 		footnoteLabel.TextXAlignment = Enum.TextXAlignment.Center
@@ -1301,7 +1301,7 @@ local function showDialog(options)
 			tb.Text = inp.Text or ""
 			tb.PlaceholderText = inp.Placeholder or ""
 			tb.FontFace = staconfFont(Enum.FontWeight.Regular)
-			tb.TextSize = 14.5
+			tb.TextSize = 15
 			tb.TextColor3 = isLight and Color3.fromRGB(22, 24, 30) or Color3.fromRGB(250, 250, 255)
 			tb.PlaceholderColor3 = isLight and Color3.fromRGB(138, 142, 155) or Color3.fromRGB(130, 135, 152)
 			tb.TextXAlignment = Enum.TextXAlignment.Left
