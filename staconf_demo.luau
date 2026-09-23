@@ -547,9 +547,11 @@ local function createNotificationCenter(owner, parent)
 	local glass = createNotificationGlass(gui, displayScale)
 	local alive = true
 	local entries = {}
+	local queue = {}
 	local connections = {}
 	local tweens = {}
 	local timers = {}
+	local notify = nil
 	local function style(entry)
 		local light = currentMode == "Light"
 		entry.card.BackgroundColor3 = light and Color3.fromRGB(242, 243, 247) or Color3.fromRGB(34, 37, 47)
@@ -650,11 +652,20 @@ local function createNotificationCenter(owner, parent)
 		end
 		local index = table.find(entries, entry)
 		if index then table.remove(entries, index) end
+		local function checkQueue()
+			if not alive or #entries >= 1 or #queue == 0 then return end
+			local nextOpts = table.remove(queue, 1)
+			if notify then notify(nextOpts) end
+		end
 		if instant then
 			dispose(entry)
+			checkQueue()
 		else
 			animate(entry.card, 0.22, { Position = UDim2.new(1, 24, 0, entry.y or 0), GroupTransparency = 1 })
-			later(0.24, function() dispose(entry) end)
+			later(0.24, function()
+				dispose(entry)
+				checkQueue()
+			end)
 		end
 		arrange()
 	end
@@ -675,11 +686,16 @@ local function createNotificationCenter(owner, parent)
 		label.Parent = parentObject
 		return label
 	end
-	local function notify(options)
+	notify = function(options)
 		if not alive then return end
 		options = options or {}
-		local capacity = math.clamp(math.floor(host.AbsoluteSize.Y / (178 * displayScale.Scale)), 1, 3)
-		while #entries >= capacity do dismiss(entries[1], true) end
+		if #entries >= 1 then
+			table.insert(queue, options)
+			return function()
+				local idx = table.find(queue, options)
+				if idx then table.remove(queue, idx) end
+			end
+		end
 		local card = Instance.new("CanvasGroup")
 		card.Name = "Notification"
 		card.BackgroundColor3 = Color3.fromRGB(201, 228, 232)
@@ -715,7 +731,7 @@ local function createNotificationCenter(owner, parent)
 		icon.ImageColor3 = Color3.fromRGB(209, 192, 255)
 		icon.Parent = iconFrame
 		textLabel(card, "App", tostring(options.App or "StacOnf"), 14, Enum.FontWeight.SemiBold, UDim2.fromOffset(68, 13))
-		textLabel(card, "Title", tostring(options.Title or "Notification"), 15, Enum.FontWeight.Bold, UDim2.fromOffset(68, 32))
+		textLabel(card, "Title", tostring(options.Title or "Notification"), 15, Enum.FontWeight.Medium, UDim2.fromOffset(68, 32))
 		local body = textLabel(card, "Message", tostring(options.Subtitle or ""), 15, Enum.FontWeight.Regular, UDim2.fromOffset(68, 51))
 		body.TextWrapped = true
 		local hit = Instance.new("TextButton")
@@ -758,6 +774,7 @@ local function createNotificationCenter(owner, parent)
 		table.clear(timers)
 		for object in pairs(tweens) do stopTween(object) end
 		table.clear(entries)
+		table.clear(queue)
 	end
 	connect(gui.Destroying, cleanup)
 	connect(owner.Destroying, function() cleanup(); gui:Destroy() end)
