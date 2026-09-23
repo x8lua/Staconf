@@ -1040,7 +1040,7 @@ end)
 
 local function showDialog(options)
 	options = options or {}
-	local parentGui = getDialogGui()
+	local parentGui = (app and app.__instance and app.__instance.Parent and app.__instance) or getDialogGui()
 	local isLight = (currentMode == "Light")
 
 	local dialogContainer = Instance.new("Frame")
