@@ -776,30 +776,13 @@ window.Destroying:Connect(function()
 	if gui then gui:Destroy() end
 end)
 
-local acrylicBlur = lighting:FindFirstChild("StacOnfAcrylicBlur")
-if not acrylicBlur then
-	acrylicBlur = Instance.new("BlurEffect")
-	acrylicBlur.Name = "StacOnfAcrylicBlur"
-	acrylicBlur.Size = 14
-	acrylicBlur.Parent = lighting
-end
-
-window.Destroying:Connect(function()
-	if acrylicBlur and acrylicBlur.Parent then
-		acrylicBlur:Destroy()
-	end
-end)
-onUnload(function()
-	if acrylicBlur and acrylicBlur.Parent then acrylicBlur:Destroy() end
-end)
+local oldBlur = lighting:FindFirstChild("StacOnfAcrylicBlur")
+if oldBlur then oldBlur:Destroy() end
 
 local minimizeKey = Enum.KeyCode.RightControl
 local minimizeConnection = userInputService.InputEnded:Connect(function(input, processed)
 	if input.KeyCode == minimizeKey and not processed then
 		window.Minimized = not window.Minimized
-		if acrylicBlur then
-			acrylicBlur.Enabled = not window.Minimized
-		end
 	end
 end)
 onUnload(function() minimizeConnection:Disconnect() end)
@@ -1051,7 +1034,7 @@ local function showDialog(options)
 	dialogContainer.ZIndex = 10000
 
 	local scrim = nil
-	if options.Modal ~= false then
+	if options.Modal == true then
 		scrim = Instance.new("TextButton")
 		scrim.Name = "Scrim"
 		scrim.Text = ""
@@ -1070,7 +1053,7 @@ local function showDialog(options)
 	local cardWrapper = Instance.new("Frame")
 	cardWrapper.Name = "CardWrapper"
 	cardWrapper.AnchorPoint = Vector2.new(0.5, 0.5)
-	cardWrapper.Position = UDim2.new(0.5, 0, 0.46, 0)
+	cardWrapper.Position = UDim2.new(0.5, 0, 0.31, 0)
 	cardWrapper.Size = UDim2.fromOffset(cardWidth, 0)
 	cardWrapper.AutomaticSize = Enum.AutomaticSize.Y
 	cardWrapper.BackgroundTransparency = 1
@@ -1601,7 +1584,7 @@ local function showDialog(options)
 		tweenService:Create(scrim, TweenInfo.new(0.28, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), { BackgroundTransparency = isLight and 0.65 or 0.45 }):Play()
 	end
 	tweenService:Create(cardWrapper, TweenInfo.new(0.32, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
-		Position = UDim2.new(0.5, 0, 0.48, 0),
+		Position = UDim2.new(0.5, 0, 0.35, 0),
 	}):Play()
 	tweenService:Create(cardScale, TweenInfo.new(0.32, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = 1 }):Play()
 
