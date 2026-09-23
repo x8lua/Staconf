@@ -1007,6 +1007,31 @@ local function getDialogGui()
 	return dialogGui
 end
 
+local dialogGlassHandler = nil
+local function getDialogGlass()
+	if dialogGlassHandler then return dialogGlassHandler end
+	local s, res = pcall(function()
+		return createNotificationGlass(game, { Scale = 1 }, {
+			Name = "StacOnfDialogGlass",
+			Curved = true,
+			Depth = 0.52,
+			Transparency = 0.88,
+			GetThickness = windowGlassThickness,
+			HighlightTransparency = 0.98,
+		})
+	end)
+	if s and res then
+		dialogGlassHandler = res
+	end
+	return dialogGlassHandler
+end
+onUnload(function()
+	if dialogGlassHandler then
+		pcall(dialogGlassHandler.Destroy)
+		dialogGlassHandler = nil
+	end
+end)
+
 local function showDialog(options)
 	options = options or {}
 	local parentGui = (app and app.__instance and app.__instance.Parent and app.__instance) or getDialogGui()
@@ -1028,13 +1053,13 @@ local function showDialog(options)
 		scrim.Size = UDim2.fromScale(1, 1)
 		scrim.Position = UDim2.fromScale(0, 0)
 		scrim.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-		scrim.BackgroundTransparency = 1
+		scrim.BackgroundTransparency = isLight and 0.65 or 0.45
 		scrim.BorderSizePixel = 0
 		scrim.ZIndex = 1
 		scrim.Parent = dialogContainer
 	end
 
-	local cardWidth = options.Width or 280
+	local cardWidth = options.Width or 350
 
 	local cardWrapper = Instance.new("Frame")
 	cardWrapper.Name = "CardWrapper"
@@ -1054,7 +1079,7 @@ local function showDialog(options)
 	shadow.Name = "Dropshadow"
 	shadow.AnchorPoint = Vector2.new(0.5, 0.5)
 	shadow.Position = UDim2.fromScale(0.5, 0.5)
-	shadow.Size = UDim2.new(1, 64, 1, 64)
+	shadow.Size = UDim2.new(1, 76, 1, 76)
 	shadow.BackgroundTransparency = 1
 	shadow.Image = "rbxassetid://5554236805"
 	shadow.ScaleType = Enum.ScaleType.Slice
@@ -1070,38 +1095,44 @@ local function showDialog(options)
 	card.AutomaticSize = Enum.AutomaticSize.Y
 	card.BorderSizePixel = 0
 	card.ZIndex = 2
-	card.BackgroundColor3 = isLight and Color3.fromRGB(238, 238, 242) or Color3.fromRGB(38, 40, 50)
-	card.BackgroundTransparency = 0.05
+	card.BackgroundColor3 = isLight and Color3.fromRGB(245, 246, 250) or Color3.fromRGB(30, 32, 42)
+	card.BackgroundTransparency = isLight and 0.15 or 0.22
 	card.Parent = cardWrapper
 
 	local cardCorner = Instance.new("UICorner")
-	cardCorner.CornerRadius = UDim.new(0, 22)
+	cardCorner.CornerRadius = UDim.new(0, 24)
 	cardCorner.Parent = card
 
 	local cardStroke = Instance.new("UIStroke")
 	cardStroke.Name = "Stroke"
-	cardStroke.Thickness = 1
+	cardStroke.Thickness = 1.2
 	cardStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 	cardStroke.Color = isLight and Color3.fromRGB(0, 0, 0) or Color3.fromRGB(255, 255, 255)
-	cardStroke.Transparency = isLight and 0.88 or 0.85
+	cardStroke.Transparency = isLight and 0.88 or 0.84
 	cardStroke.Parent = card
+
+	local dg = getDialogGlass()
+	if dg then
+		pcall(function() dg.Add(card) end)
+	end
 
 	local layoutIgnore = Instance.new("Folder")
 	layoutIgnore.Name = "LayoutIgnore"
 	layoutIgnore.Parent = card
 
+	local helpBtn = nil
 	if options.Help ~= false then
-		local helpBtn = Instance.new("TextButton")
+		helpBtn = Instance.new("TextButton")
 		helpBtn.Name = "HelpButton"
-		helpBtn.Size = UDim2.fromOffset(20, 20)
+		helpBtn.Size = UDim2.fromOffset(22, 22)
 		helpBtn.AnchorPoint = Vector2.new(1, 0)
-		helpBtn.Position = UDim2.new(1, -12, 0, 12)
-		helpBtn.BackgroundColor3 = isLight and Color3.fromRGB(220, 220, 224) or Color3.fromRGB(55, 58, 70)
+		helpBtn.Position = UDim2.new(1, -14, 0, 14)
+		helpBtn.BackgroundColor3 = isLight and Color3.fromRGB(222, 225, 232) or Color3.fromRGB(56, 59, 72)
 		helpBtn.BorderSizePixel = 0
 		helpBtn.Text = "?"
-		helpBtn.TextSize = 12
+		helpBtn.TextSize = 13
 		helpBtn.FontFace = staconfFont(Enum.FontWeight.Bold)
-		helpBtn.TextColor3 = isLight and Color3.fromRGB(120, 120, 125) or Color3.fromRGB(160, 165, 175)
+		helpBtn.TextColor3 = isLight and Color3.fromRGB(120, 124, 135) or Color3.fromRGB(165, 170, 182)
 		local hCorner = Instance.new("UICorner")
 		hCorner.CornerRadius = UDim.new(1, 0)
 		hCorner.Parent = helpBtn
@@ -1113,24 +1144,24 @@ local function showDialog(options)
 	end
 
 	local padding = Instance.new("UIPadding")
-	padding.PaddingTop = UDim.new(0, 26)
-	padding.PaddingBottom = UDim.new(0, 20)
-	padding.PaddingLeft = UDim.new(0, 22)
-	padding.PaddingRight = UDim.new(0, 22)
+	padding.PaddingTop = UDim.new(0, 28)
+	padding.PaddingBottom = UDim.new(0, 24)
+	padding.PaddingLeft = UDim.new(0, 28)
+	padding.PaddingRight = UDim.new(0, 28)
 	padding.Parent = card
 
 	local list = Instance.new("UIListLayout")
 	list.FillDirection = Enum.FillDirection.Vertical
 	list.SortOrder = Enum.SortOrder.LayoutOrder
 	list.HorizontalAlignment = Enum.HorizontalAlignment.Center
-	list.Padding = UDim.new(0, 12)
+	list.Padding = UDim.new(0, 14)
 	list.Parent = card
 
 	if options.Icon ~= false then
 		local iconType = options.Icon or "Warning"
 		local iconImg = Instance.new("ImageLabel")
 		iconImg.Name = "Icon"
-		iconImg.Size = UDim2.fromOffset(56, 56)
+		iconImg.Size = UDim2.fromOffset(64, 64)
 		iconImg.BackgroundTransparency = 1
 		iconImg.LayoutOrder = 1
 		iconImg.ZIndex = 12
@@ -1160,10 +1191,10 @@ local function showDialog(options)
 	titleLabel.Size = UDim2.new(1, 0, 0, 0)
 	titleLabel.AutomaticSize = Enum.AutomaticSize.Y
 	titleLabel.FontFace = staconfFont(Enum.FontWeight.Bold)
-	titleLabel.TextSize = 13.5
+	titleLabel.TextSize = 16.5
 	titleLabel.TextWrapped = true
 	titleLabel.TextXAlignment = Enum.TextXAlignment.Center
-	titleLabel.TextColor3 = isLight and Color3.fromRGB(25, 25, 28) or Color3.fromRGB(245, 245, 250)
+	titleLabel.TextColor3 = isLight and Color3.fromRGB(20, 22, 28) or Color3.fromRGB(252, 252, 255)
 	titleLabel.BackgroundTransparency = 1
 	titleLabel.LayoutOrder = 2
 	titleLabel.ZIndex = 12
@@ -1177,10 +1208,11 @@ local function showDialog(options)
 		descLabel.Size = UDim2.new(1, 0, 0, 0)
 		descLabel.AutomaticSize = Enum.AutomaticSize.Y
 		descLabel.FontFace = staconfFont(Enum.FontWeight.Regular)
-		descLabel.TextSize = 11.5
+		descLabel.TextSize = 13.5
+		descLabel.LineHeight = 1.15
 		descLabel.TextWrapped = true
 		descLabel.TextXAlignment = Enum.TextXAlignment.Center
-		descLabel.TextColor3 = isLight and Color3.fromRGB(65, 65, 70) or Color3.fromRGB(195, 198, 208)
+		descLabel.TextColor3 = isLight and Color3.fromRGB(75, 78, 88) or Color3.fromRGB(195, 198, 210)
 		descLabel.BackgroundTransparency = 1
 		descLabel.LayoutOrder = 3
 		descLabel.ZIndex = 12
@@ -1195,10 +1227,10 @@ local function showDialog(options)
 		footnoteLabel.Size = UDim2.new(1, 0, 0, 0)
 		footnoteLabel.AutomaticSize = Enum.AutomaticSize.Y
 		footnoteLabel.FontFace = staconfFont(Enum.FontWeight.Regular)
-		footnoteLabel.TextSize = 10.5
+		footnoteLabel.TextSize = 12
 		footnoteLabel.TextWrapped = true
 		footnoteLabel.TextXAlignment = Enum.TextXAlignment.Center
-		footnoteLabel.TextColor3 = isLight and Color3.fromRGB(140, 140, 148) or Color3.fromRGB(120, 125, 138)
+		footnoteLabel.TextColor3 = isLight and Color3.fromRGB(130, 134, 145) or Color3.fromRGB(135, 140, 155)
 		footnoteLabel.BackgroundTransparency = 1
 		footnoteLabel.LayoutOrder = 4
 		footnoteLabel.ZIndex = 12
@@ -1206,6 +1238,7 @@ local function showDialog(options)
 	end
 
 	local inputBoxes = {}
+	local inputsRegistry = {}
 	if options.Inputs and #options.Inputs > 0 then
 		local inputsFrame = Instance.new("Frame")
 		inputsFrame.Name = "InputsContainer"
@@ -1218,37 +1251,37 @@ local function showDialog(options)
 		local iList = Instance.new("UIListLayout")
 		iList.FillDirection = Enum.FillDirection.Vertical
 		iList.SortOrder = Enum.SortOrder.LayoutOrder
-		iList.Padding = UDim.new(0, 8)
+		iList.Padding = UDim.new(0, 10)
 		iList.Parent = inputsFrame
 
 		for idx, inp in ipairs(options.Inputs) do
 			local iCard = Instance.new("Frame")
 			iCard.Name = "Input_" .. tostring(idx)
-			iCard.Size = UDim2.new(1, 0, 0, 28)
-			iCard.BackgroundColor3 = isLight and Color3.fromRGB(222, 224, 230) or Color3.fromRGB(48, 52, 65)
+			iCard.Size = UDim2.new(1, 0, 0, 34)
+			iCard.BackgroundColor3 = isLight and Color3.fromRGB(232, 234, 240) or Color3.fromRGB(45, 48, 62)
 			iCard.BorderSizePixel = 0
 			iCard.ZIndex = 13
 
 			local iCorner = Instance.new("UICorner")
-			iCorner.CornerRadius = UDim.new(0, 7)
+			iCorner.CornerRadius = UDim.new(0, 8)
 			iCorner.Parent = iCard
 
 			local iStroke = Instance.new("UIStroke")
 			iStroke.Thickness = 1
 			iStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-			iStroke.Color = isLight and Color3.fromRGB(195, 198, 208) or Color3.fromRGB(65, 70, 85)
+			iStroke.Color = isLight and Color3.fromRGB(205, 208, 218) or Color3.fromRGB(68, 73, 90)
 			iStroke.Parent = iCard
 
 			local tb = Instance.new("TextBox")
-			tb.Size = UDim2.new(1, -16, 1, 0)
-			tb.Position = UDim2.new(0, 8, 0, 0)
+			tb.Size = UDim2.new(1, -20, 1, 0)
+			tb.Position = UDim2.new(0, 10, 0, 0)
 			tb.BackgroundTransparency = 1
 			tb.Text = inp.Text or ""
 			tb.PlaceholderText = inp.Placeholder or ""
 			tb.FontFace = staconfFont(Enum.FontWeight.Regular)
-			tb.TextSize = 12.5
-			tb.TextColor3 = isLight and Color3.fromRGB(25, 25, 28) or Color3.fromRGB(245, 245, 250)
-			tb.PlaceholderColor3 = isLight and Color3.fromRGB(140, 145, 155) or Color3.fromRGB(125, 130, 145)
+			tb.TextSize = 14
+			tb.TextColor3 = isLight and Color3.fromRGB(25, 25, 30) or Color3.fromRGB(250, 250, 255)
+			tb.PlaceholderColor3 = isLight and Color3.fromRGB(140, 145, 158) or Color3.fromRGB(125, 130, 148)
 			tb.TextXAlignment = Enum.TextXAlignment.Left
 			tb.ClearTextOnFocus = false
 			tb.ZIndex = 14
@@ -1258,20 +1291,22 @@ local function showDialog(options)
 				iStroke.Thickness = 2
 			end)
 			tb.FocusLost:Connect(function()
-				iStroke.Color = isLight and Color3.fromRGB(195, 198, 208) or Color3.fromRGB(65, 70, 85)
+				local curLight = (currentMode == "Light")
+				iStroke.Color = curLight and Color3.fromRGB(205, 208, 218) or Color3.fromRGB(68, 73, 90)
 				iStroke.Thickness = 1
 			end)
 
 			tb.Parent = iCard
 			iCard.Parent = inputsFrame
 			inputBoxes[inp.Key or idx] = tb
+			table.insert(inputsRegistry, { card = iCard, stroke = iStroke, tb = tb })
 		end
 		inputsFrame.Parent = card
 	end
 
 	local btnRow = Instance.new("Frame")
 	btnRow.Name = "ButtonsRow"
-	btnRow.Size = UDim2.new(1, 0, 0, 32)
+	btnRow.Size = UDim2.new(1, 0, 0, 36)
 	btnRow.BackgroundTransparency = 1
 	btnRow.LayoutOrder = 6
 	btnRow.ZIndex = 12
@@ -1290,6 +1325,7 @@ local function showDialog(options)
 
 	local btnCount = #buttonDefs
 	local dialogHandle = {}
+	local buttonsRegistry = {}
 
 	local isClosed = false
 	local function closeDialog()
@@ -1315,10 +1351,85 @@ local function showDialog(options)
 		end)
 	end
 
+	local function applyTheme(mode, animated)
+		local light = (mode == "Light")
+		local tInfo = animated and TweenInfo.new(0.38, Enum.EasingStyle.Quart, Enum.EasingDirection.Out) or nil
+		local function setOrTween(inst, props)
+			if tInfo then
+				tweenService:Create(inst, tInfo, props):Play()
+			else
+				for k, v in pairs(props) do
+					inst[k] = v
+				end
+			end
+		end
+		setOrTween(card, {
+			BackgroundColor3 = light and Color3.fromRGB(245, 246, 250) or Color3.fromRGB(30, 32, 42),
+			BackgroundTransparency = light and 0.15 or 0.22,
+		})
+		setOrTween(cardStroke, {
+			Color = light and Color3.fromRGB(0, 0, 0) or Color3.fromRGB(255, 255, 255),
+			Transparency = light and 0.88 or 0.84,
+		})
+		setOrTween(shadow, {
+			ImageTransparency = light and 0.55 or 0.35,
+		})
+		if scrim then
+			setOrTween(scrim, {
+				BackgroundTransparency = light and 0.65 or 0.45,
+			})
+		end
+		if helpBtn then
+			setOrTween(helpBtn, {
+				BackgroundColor3 = light and Color3.fromRGB(222, 225, 232) or Color3.fromRGB(56, 59, 72),
+				TextColor3 = light and Color3.fromRGB(120, 124, 135) or Color3.fromRGB(165, 170, 182),
+			})
+		end
+		setOrTween(titleLabel, {
+			TextColor3 = light and Color3.fromRGB(20, 22, 28) or Color3.fromRGB(252, 252, 255),
+		})
+		if descLabel then
+			setOrTween(descLabel, {
+				TextColor3 = light and Color3.fromRGB(75, 78, 88) or Color3.fromRGB(195, 198, 210),
+			})
+		end
+		if footnoteLabel then
+			setOrTween(footnoteLabel, {
+				TextColor3 = light and Color3.fromRGB(130, 134, 145) or Color3.fromRGB(135, 140, 155),
+			})
+		end
+		for _, inpData in ipairs(inputsRegistry) do
+			setOrTween(inpData.card, {
+				BackgroundColor3 = light and Color3.fromRGB(232, 234, 240) or Color3.fromRGB(45, 48, 62),
+			})
+			setOrTween(inpData.stroke, {
+				Color = light and Color3.fromRGB(205, 208, 218) or Color3.fromRGB(68, 73, 90),
+			})
+			setOrTween(inpData.tb, {
+				TextColor3 = light and Color3.fromRGB(25, 25, 30) or Color3.fromRGB(250, 250, 255),
+				PlaceholderColor3 = light and Color3.fromRGB(140, 145, 158) or Color3.fromRGB(125, 130, 148),
+			})
+		end
+		for _, bData in ipairs(buttonsRegistry) do
+			if bData.style == "Secondary" then
+				setOrTween(bData.btn, {
+					BackgroundColor3 = light and Color3.fromRGB(226, 228, 236) or Color3.fromRGB(56, 59, 72),
+					TextColor3 = light and Color3.fromRGB(35, 38, 45) or Color3.fromRGB(240, 242, 248),
+				})
+				if bData.stroke then
+					setOrTween(bData.stroke, {
+						Color = light and Color3.fromRGB(192, 195, 206) or Color3.fromRGB(75, 79, 94),
+					})
+				end
+			end
+		end
+	end
+
 	dialogHandle.Close = closeDialog
 	dialogHandle.Card = card
 	dialogHandle.Wrapper = cardWrapper
 	dialogHandle.Container = dialogContainer
+	dialogHandle.ApplyTheme = applyTheme
 	dialogHandle.SetTitle = function(newTitle) titleLabel.Text = newTitle end
 	dialogHandle.SetDescription = function(newDesc)
 		if descLabel then descLabel.Text = newDesc end
@@ -1347,32 +1458,33 @@ local function showDialog(options)
 		end
 
 		local bCorner = Instance.new("UICorner")
-		bCorner.CornerRadius = UDim.new(0, 8)
+		bCorner.CornerRadius = UDim.new(0, 9)
 		bCorner.Parent = btn
 
 		local isPrimary = (bConf.Style == "Primary")
 		local isDestructive = (bConf.Style == "Destructive")
+		local bStroke = nil
 
 		if isPrimary then
 			btn.BackgroundColor3 = Color3.fromRGB(0, 122, 255)
 			btn.TextColor3 = Color3.fromRGB(255, 255, 255)
-			btn.FontFace = staconfFont(Enum.FontWeight.Bold)
-			btn.TextSize = 13
+			btn.FontFace = staconfFont(Enum.FontWeight.SemiBold)
+			btn.TextSize = 14.5
 		elseif isDestructive then
 			btn.BackgroundColor3 = Color3.fromRGB(255, 59, 48)
 			btn.TextColor3 = Color3.fromRGB(255, 255, 255)
-			btn.FontFace = staconfFont(Enum.FontWeight.Bold)
-			btn.TextSize = 13
+			btn.FontFace = staconfFont(Enum.FontWeight.SemiBold)
+			btn.TextSize = 14.5
 		else
-			btn.BackgroundColor3 = isLight and Color3.fromRGB(216, 217, 222) or Color3.fromRGB(56, 58, 68)
-			btn.TextColor3 = isLight and Color3.fromRGB(30, 30, 35) or Color3.fromRGB(240, 240, 245)
+			btn.BackgroundColor3 = isLight and Color3.fromRGB(226, 228, 236) or Color3.fromRGB(56, 59, 72)
+			btn.TextColor3 = isLight and Color3.fromRGB(35, 38, 45) or Color3.fromRGB(240, 242, 248)
 			btn.FontFace = staconfFont(Enum.FontWeight.Regular)
-			btn.TextSize = 13
+			btn.TextSize = 14.5
 
-			local bStroke = Instance.new("UIStroke")
+			bStroke = Instance.new("UIStroke")
 			bStroke.Thickness = 1
 			bStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-			bStroke.Color = isLight and Color3.fromRGB(185, 186, 195) or Color3.fromRGB(75, 78, 90)
+			bStroke.Color = isLight and Color3.fromRGB(192, 195, 206) or Color3.fromRGB(75, 79, 94)
 			bStroke.Parent = btn
 		end
 
@@ -1383,11 +1495,19 @@ local function showDialog(options)
 			elseif isDestructive then
 				btn.BackgroundColor3 = Color3.fromRGB(255, 78, 68)
 			else
-				btn.BackgroundColor3 = isLight and Color3.fromRGB(208, 210, 216) or Color3.fromRGB(66, 69, 82)
+				local curLight = (currentMode == "Light")
+				btn.BackgroundColor3 = curLight and Color3.fromRGB(216, 219, 228) or Color3.fromRGB(66, 70, 84)
 			end
 		end)
 		btn.MouseLeave:Connect(function()
-			btn.BackgroundColor3 = baseColor
+			local curLight = (currentMode == "Light")
+			if isPrimary then
+				btn.BackgroundColor3 = Color3.fromRGB(0, 122, 255)
+			elseif isDestructive then
+				btn.BackgroundColor3 = Color3.fromRGB(255, 59, 48)
+			else
+				btn.BackgroundColor3 = curLight and Color3.fromRGB(226, 228, 236) or Color3.fromRGB(56, 59, 72)
+			end
 		end)
 
 		btn.MouseButton1Click:Connect(function()
@@ -1401,6 +1521,7 @@ local function showDialog(options)
 		end)
 
 		btn.Parent = btnRow
+		table.insert(buttonsRegistry, { btn = btn, stroke = bStroke, style = bConf.Style or "Secondary" })
 	end
 	btnRow.Parent = card
 
@@ -1452,7 +1573,7 @@ local function showDialog(options)
 	end
 
 	if scrim then
-		tweenService:Create(scrim, TweenInfo.new(0.28, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), { BackgroundTransparency = 0.4 }):Play()
+		tweenService:Create(scrim, TweenInfo.new(0.28, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), { BackgroundTransparency = isLight and 0.65 or 0.45 }):Play()
 	end
 	tweenService:Create(cardWrapper, TweenInfo.new(0.32, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
 		Position = UDim2.new(0.5, 0, 0.48, 0),
@@ -2444,6 +2565,11 @@ local function smoothTransition(newMode, newAccentName)
 	if refreshSidebarSelection then refreshSidebarSelection() end
 	if refreshMiddlePanel then refreshMiddlePanel() end
 	if refreshAccountPage then refreshAccountPage() end
+	for _, dlg in ipairs(activeDialogs) do
+		if dlg.ApplyTheme then
+			dlg.ApplyTheme(currentMode, true)
+		end
+	end
 	task.defer(function()
 		for desc, oldProps in pairs(snapshot) do
 			if desc and desc.Parent then
