@@ -8346,6 +8346,13 @@ do
 	Rere.Internal = {
 		_cycle = function(...) end,
 		_Insert = function(...) return {} end,
+		_cycleTick = 0,
+		_utility = {
+			applyButtonClick = function(...) end,
+			applyMouseEnter = function(...) end,
+			applyMouseLeave = function(...) end,
+		},
+		WidgetConstructor = function(...) end,
 	}
 	_G.LarpkuranRereUI = Rere
 end
@@ -8931,137 +8938,6 @@ triggerLarpkuranRestart = function()
 end
 _G.LarpkuranRestart = triggerLarpkuranRestart
 startLarpkuranSplash()
-end
-do
-    local widgets = Rere.Internal._utility
-    Rere.Internal.WidgetConstructor("Keybind", {
-        hasState = false,
-        hasChildren = false,
-        Args = {
-            ["Title"] = 1,
-            ["Key"] = 2,
-            ["Capturing"] = 3
-        },
-        Events = {
-            ["clicked"] = {
-                ["Init"] = function(thisWidget)
-                    thisWidget.lastClickedTick = -1
-                    widgets.applyButtonClick(thisWidget.Instance, function()
-                        thisWidget.lastClickedTick = Rere.Internal._cycleTick + 1
-                    end)
-                    local btn = thisWidget.Instance:FindFirstChild("KeyButton")
-                    if btn then
-                        widgets.applyButtonClick(btn, function()
-                            thisWidget.lastClickedTick = Rere.Internal._cycleTick + 1
-                        end)
-                    end
-                end,
-                ["Get"] = function(thisWidget)
-                    return thisWidget.lastClickedTick == Rere.Internal._cycleTick
-                end
-            }
-        },
-        Generate = function(thisWidget)
-            local frame = Instance.new("TextButton")
-            frame.Name = "Iris_Keybind"
-            frame.Size = UDim2.new(0, 314, 0, 26)
-            frame.BackgroundColor3 = Color3.fromRGB(22, 23, 29)
-            frame.BackgroundTransparency = 0.25
-            frame.BorderSizePixel = 0
-            frame.AutoButtonColor = false
-            frame.Text = ""
-            local corner = Instance.new("UICorner", frame)
-            corner.CornerRadius = UDim.new(0, 5)
-            local stroke = Instance.new("UIStroke", frame)
-            stroke.Color = Color3.fromRGB(38, 40, 50)
-            stroke.Thickness = 1
-            stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-            local padding = Instance.new("UIPadding", frame)
-            padding.PaddingLeft = UDim.new(0, 10)
-            padding.PaddingRight = UDim.new(0, 6)
-            padding.PaddingTop = UDim.new(0, 2)
-            padding.PaddingBottom = UDim.new(0, 2)
-            local label = Instance.new("TextLabel", frame)
-            label.Name = "TitleLabel"
-            label.Size = UDim2.new(1, -105, 1, 0)
-            label.Position = UDim2.new(0, 0, 0, 0)
-            label.BackgroundTransparency = 1
-            label.TextColor3 = Color3.fromRGB(220, 222, 232)
-            label.TextXAlignment = Enum.TextXAlignment.Left
-            label.Font = Enum.Font.GothamMedium
-            label.TextSize = 12
-            local keyBtn = Instance.new("TextButton", frame)
-            keyBtn.Name = "KeyButton"
-            keyBtn.Size = UDim2.new(0, 95, 1, 0)
-            keyBtn.AnchorPoint = Vector2.new(1, 0.5)
-            keyBtn.Position = UDim2.new(1, 0, 0.5, 0)
-            keyBtn.AutoButtonColor = false
-            keyBtn.BackgroundColor3 = Color3.fromRGB(30, 32, 42)
-            keyBtn.BorderSizePixel = 0
-            keyBtn.TextColor3 = Color3.fromRGB(130, 185, 255)
-            keyBtn.Font = Enum.Font.RobotoMono
-            keyBtn.TextSize = 11
-            local btnCorner = Instance.new("UICorner", keyBtn)
-            btnCorner.CornerRadius = UDim.new(0, 4)
-            local btnStroke = Instance.new("UIStroke", keyBtn)
-            btnStroke.Color = Color3.fromRGB(48, 52, 68)
-            btnStroke.Thickness = 1
-            widgets.applyMouseEnter(frame, function()
-                local args = thisWidget.arguments or {}
-                local isCap = args.Capturing == true or args[3] == true
-                if not isCap then
-                    frame.BackgroundColor3 = Color3.fromRGB(30, 32, 42)
-                    stroke.Color = Color3.fromRGB(55, 60, 75)
-                    keyBtn.BackgroundColor3 = Color3.fromRGB(40, 44, 58)
-                    btnStroke.Color = Color3.fromRGB(75, 95, 130)
-                end
-            end)
-            widgets.applyMouseLeave(frame, function()
-                local args = thisWidget.arguments or {}
-                local isCap = args.Capturing == true or args[3] == true
-                if not isCap then
-                    frame.BackgroundColor3 = Color3.fromRGB(22, 23, 29)
-                    stroke.Color = Color3.fromRGB(38, 40, 50)
-                    keyBtn.BackgroundColor3 = Color3.fromRGB(30, 32, 42)
-                    btnStroke.Color = Color3.fromRGB(48, 52, 68)
-                end
-            end)
-            return frame
-        end,
-        Update = function(thisWidget)
-            local frame = thisWidget.Instance
-            local args = thisWidget.arguments or {}
-            local title = tostring(args.Title or args[1] or "")
-            local key = tostring(args.Key or args[2] or "None")
-            local isCap = args.Capturing == true or args[3] == true
-            local label = frame.TitleLabel
-            local keyBtn = frame.KeyButton
-            local stroke = frame.UIStroke
-            local btnStroke = keyBtn.UIStroke
-            label.Text = title
-            if isCap then
-                stroke.Color = Color3.fromRGB(0, 160, 240)
-                frame.BackgroundColor3 = Color3.fromRGB(26, 32, 46)
-                keyBtn.Text = "[ Press key ]"
-                keyBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-                keyBtn.BackgroundColor3 = Color3.fromRGB(0, 110, 210)
-                btnStroke.Color = Color3.fromRGB(0, 200, 255)
-            else
-                stroke.Color = Color3.fromRGB(38, 40, 50)
-                frame.BackgroundColor3 = Color3.fromRGB(22, 23, 29)
-                keyBtn.Text = "[" .. key .. "]"
-                keyBtn.TextColor3 = Color3.fromRGB(130, 185, 255)
-                keyBtn.BackgroundColor3 = Color3.fromRGB(30, 32, 42)
-                btnStroke.Color = Color3.fromRGB(48, 52, 68)
-            end
-        end,
-        Discard = function(thisWidget)
-            thisWidget.Instance:Destroy()
-        end
-    })
-    Rere.Keybind = function(arguments, states)
-        return Rere.Internal._Insert("Keybind", arguments, states)
-    end
 end
 local Notify
 do
@@ -29457,6 +29333,41 @@ trackConnection("ControllerSync_Heartbeat", RunService.Heartbeat:Connect(functio
     end
 end))
 local function initStaconfUI()
+local coreGui = game:GetService("CoreGui")
+local players = game:GetService("Players")
+local lighting = game:GetService("Lighting")
+local userInputService = game:GetService("UserInputService")
+local workspaceService = game:GetService("Workspace")
+local tweenService = game:GetService("TweenService")
+local textService = game:GetService("TextService")
+local localPlayer = players.LocalPlayer or players:GetPropertyChangedSignal("LocalPlayer"):Wait()
+
+local function cleanupExisting()
+	local targets = {}
+	if typeof(gethui) == "function" then
+		pcall(function()
+			table.insert(targets, gethui())
+		end)
+	end
+	pcall(function()
+		table.insert(targets, coreGui)
+	end)
+	if localPlayer and localPlayer:FindFirstChild("PlayerGui") then
+		table.insert(targets, localPlayer.PlayerGui)
+	end
+	for _, parent in ipairs(targets) do
+		for _, child in ipairs(parent:GetChildren()) do
+			if child.Name == "StacOnf" or child.Name == "Cascade" or child.Name == "StacOnfNotifications" or child.Name == "StacOnfDialogs" or child.Name == "StacOnfTooltips" then
+				pcall(function()
+					child:Destroy()
+				end)
+			end
+		end
+	end
+end
+
+cleanupExisting()
+
 local importUrl = "https://github.com/cascadeui/Cascade/releases/latest/download/dist.luau"
 local cascade = loadstring(game:HttpGetAsync(importUrl))()
 local function getAsset(fileName, rawUrl)
@@ -32836,7 +32747,19 @@ end
 local function addKeybind(sec, title, sub, keyName, defKey, onChange, info)
 	local row = titledRow(sec, title, sub, info)
 	local currentStr = (controller.Keybinds and controller.Keybinds[keyName]) or defKey or "None"
-	local keyEnum = Enum.KeyCode[currentStr] or Enum.KeyCode.Unknown
+	local keyEnum = Enum.KeyCode.Unknown
+	local okKey, resolvedKey = pcall(function() return Enum.KeyCode[currentStr] end)
+	if okKey and resolvedKey then
+		keyEnum = resolvedKey
+	else
+		local lowerStr = tostring(currentStr or ""):lower()
+		for _, item in ipairs(Enum.KeyCode:GetEnumItems()) do
+			if item.Name:lower() == lowerStr then
+				keyEnum = item
+				break
+			end
+		end
+	end
 	local kField = row:Right():KeybindField({
 		Value = keyEnum,
 		ValueChanged = function(self, val)
