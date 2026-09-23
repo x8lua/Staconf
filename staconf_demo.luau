@@ -22,7 +22,7 @@ local function cleanupExisting()
 	end
 	for _, parent in ipairs(targets) do
 		for _, child in ipairs(parent:GetChildren()) do
-			if child.Name == "StacOnf" or child.Name == "Cascade" or child.Name == "StacOnfNotifications" then
+			if child.Name == "StacOnf" or child.Name == "Cascade" or child.Name == "StacOnfNotifications" or child.Name == "StacOnfDialogs" then
 				pcall(function()
 					child:Destroy()
 				end)
@@ -316,9 +316,12 @@ local function createNotificationGlass(gui, scale, options)
 		return { Add = function() return false end, Destroy = function() end }
 	end
 	local items = {}
-	local connection
+	local bound = false
 	local destroyed = false
 	local runService = game:GetService("RunService")
+	local renderName = "StacOnfGlass_" .. game:GetService("HttpService"):GenerateGUID(false)
+	local cameraConnection
+	local currentCameraConnection
 	local folder = Instance.new("Folder")
 	folder.Name = options.Name or "StacOnfNotificationGlass"
 	folder.Parent = workspaceService
@@ -341,12 +344,16 @@ local function createNotificationGlass(gui, scale, options)
 		item.model:Destroy()
 		if item.lens then item.lens.Mesh:Destroy() end
 		items[card] = nil
-		if not next(items) and connection then connection:Disconnect(); connection = nil end
+		if not next(items) then
+			if bound then runService:UnbindFromRenderStep(renderName); bound = false end
+			if cameraConnection then cameraConnection:Disconnect(); cameraConnection = nil end
+			if currentCameraConnection then currentCameraConnection:Disconnect(); currentCameraConnection = nil end
+		end
 	end
 	local function render()
 		local camera = workspaceService.CurrentCamera
 		if not camera then return end
-		local cam = camera:GetRenderCFrame()
+		local cam = camera.CFrame
 		for card, item in pairs(items) do
 			local size = card.AbsoluteSize
 			local pos = card.AbsolutePosition
@@ -390,7 +397,7 @@ local function createNotificationGlass(gui, scale, options)
 				end
 				local part = item.lens.Part
 				part.Size = Vector3.new(width, height, thickness)
-				part.CFrame = CFrame.new(world + cam.ZVector * thickness * 0.4) * cam.Rotation
+				part.CFrame = CFrame.new(world) * cam.Rotation
 				part.Color = currentMode == "Light" and Color3.fromRGB(246, 248, 252) or Color3.fromRGB(146, 158, 182)
 				local base = currentMode == "Light" and math.max(options.Transparency or 0.86, 0.97) or (options.Transparency or 0.86)
 				part.Transparency = base + (1 - base) * transparency
@@ -410,6 +417,12 @@ local function createNotificationGlass(gui, scale, options)
 			item.highlight.FillTransparency = fill + (1 - fill) * transparency
 		end
 	end
+	local function bindCamera()
+		if cameraConnection then cameraConnection:Disconnect(); cameraConnection = nil end
+		local camera = workspaceService.CurrentCamera
+		if camera then cameraConnection = camera:GetPropertyChangedSignal("CFrame"):Connect(render) end
+		render()
+	end
 	syncBinding = function()
 		if destroyed then return end
 		local active = false
@@ -418,8 +431,18 @@ local function createNotificationGlass(gui, scale, options)
 			item.model.Parent = visible and folder or nil
 			active = active or visible
 		end
-		if active and not connection then connection = runService.RenderStepped:Connect(render) end
-		if not active and connection then connection:Disconnect(); connection = nil end
+		if active and not bound then
+			runService:BindToRenderStep(renderName, Enum.RenderPriority.Last.Value + 1, render)
+			bound = true
+			currentCameraConnection = workspaceService:GetPropertyChangedSignal("CurrentCamera"):Connect(bindCamera)
+			bindCamera()
+		end
+		if not active and bound then
+			runService:UnbindFromRenderStep(renderName)
+			bound = false
+			if cameraConnection then cameraConnection:Disconnect(); cameraConnection = nil end
+			if currentCameraConnection then currentCameraConnection:Disconnect(); currentCameraConnection = nil end
+		end
 	end
 	return {
 		Add = function(card)
@@ -487,7 +510,9 @@ local function createNotificationGlass(gui, scale, options)
 		Destroy = function()
 			if destroyed then return end
 			destroyed = true
-			if connection then connection:Disconnect(); connection = nil end
+			if bound then runService:UnbindFromRenderStep(renderName); bound = false end
+			if cameraConnection then cameraConnection:Disconnect(); cameraConnection = nil end
+			if currentCameraConnection then currentCameraConnection:Disconnect(); currentCameraConnection = nil end
 			for card in pairs(items) do remove(card) end
 			templates:Destroy()
 			folder:Destroy()
@@ -951,6 +976,477 @@ onUnload(function()
 	for _, connection in ipairs(modalConnections) do connection:Disconnect() end
 	table.clear(modalConnections)
 end)
+
+local dialogGui = nil
+local activeDialogs = {}
+
+local function getDialogGui()
+	if dialogGui and dialogGui.Parent then return dialogGui end
+	local targets = {}
+	if typeof(gethui) == "function" then
+		pcall(function() table.insert(targets, gethui()) end)
+	end
+	pcall(function() table.insert(targets, coreGui) end)
+	if localPlayer and localPlayer:FindFirstChild("PlayerGui") then
+		table.insert(targets, localPlayer.PlayerGui)
+	end
+	for _, target in ipairs(targets) do
+		local existing = target:FindFirstChild("StacOnfDialogs")
+		if existing then
+			dialogGui = existing
+			return dialogGui
+		end
+	end
+	dialogGui = Instance.new("ScreenGui")
+	dialogGui.Name = "StacOnfDialogs"
+	dialogGui.DisplayOrder = 100000
+	dialogGui.ResetOnSpawn = false
+	dialogGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+	local chosen = targets[1] or coreGui
+	dialogGui.Parent = chosen
+	return dialogGui
+end
+
+local function showDialog(options)
+	options = options or {}
+	local parentGui = getDialogGui()
+	local isLight = (currentMode == "Light")
+
+	local dialogContainer = Instance.new("Frame")
+	dialogContainer.Name = "DialogContainer"
+	dialogContainer.Size = UDim2.fromScale(1, 1)
+	dialogContainer.Position = UDim2.fromScale(0, 0)
+	dialogContainer.BackgroundTransparency = 1
+	dialogContainer.ZIndex = 100
+
+	local scrim = nil
+	if options.Modal ~= false then
+		scrim = Instance.new("TextButton")
+		scrim.Name = "Scrim"
+		scrim.Text = ""
+		scrim.AutoButtonColor = false
+		scrim.Size = UDim2.fromScale(1, 1)
+		scrim.Position = UDim2.fromScale(0, 0)
+		scrim.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+		scrim.BackgroundTransparency = 1
+		scrim.BorderSizePixel = 0
+		scrim.ZIndex = 1
+		scrim.Parent = dialogContainer
+	end
+
+	local cardWidth = options.Width or 280
+	local card = Instance.new("Frame")
+	card.Name = "DialogCard"
+	card.AnchorPoint = Vector2.new(0.5, 0.5)
+	card.Position = UDim2.new(0.5, 0, 0.46, 0)
+	card.Size = UDim2.fromOffset(cardWidth, 0)
+	card.AutomaticSize = Enum.AutomaticSize.Y
+	card.BorderSizePixel = 0
+	card.ZIndex = 10
+	card.BackgroundColor3 = isLight and Color3.fromRGB(236, 236, 238) or Color3.fromRGB(40, 42, 52)
+	card.BackgroundTransparency = 0.2
+
+	local cardCorner = Instance.new("UICorner")
+	cardCorner.CornerRadius = UDim.new(0, 22)
+	cardCorner.Parent = card
+
+	local cardStroke = Instance.new("UIStroke")
+	cardStroke.Name = "Stroke"
+	cardStroke.Thickness = 1
+	cardStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+	cardStroke.Color = isLight and Color3.fromRGB(0, 0, 0) or Color3.fromRGB(255, 255, 255)
+	cardStroke.Transparency = isLight and 0.88 or 0.85
+	cardStroke.Parent = card
+
+	local cardScale = Instance.new("UIScale")
+	cardScale.Scale = 0.88
+	cardScale.Parent = card
+
+	local layoutIgnore = Instance.new("Folder")
+	layoutIgnore.Name = "LayoutIgnore"
+	layoutIgnore.Parent = card
+
+	local shadow = Instance.new("ImageLabel")
+	shadow.Name = "Dropshadow"
+	shadow.AnchorPoint = Vector2.new(0.5, 0.5)
+	shadow.Position = UDim2.fromScale(0.5, 0.5)
+	shadow.Size = UDim2.new(1, 56, 1, 56)
+	shadow.BackgroundTransparency = 1
+	shadow.Image = "rbxassetid://5554236805"
+	shadow.ScaleType = Enum.ScaleType.Slice
+	shadow.SliceCenter = Rect.new(23, 23, 277, 277)
+	shadow.ImageColor3 = Color3.fromRGB(0, 0, 0)
+	shadow.ImageTransparency = isLight and 0.65 or 0.45
+	shadow.ZIndex = 5
+	shadow.Parent = layoutIgnore
+
+	if options.Help ~= false then
+		local helpBtn = Instance.new("TextButton")
+		helpBtn.Name = "HelpButton"
+		helpBtn.Size = UDim2.fromOffset(20, 20)
+		helpBtn.AnchorPoint = Vector2.new(1, 0)
+		helpBtn.Position = UDim2.new(1, -12, 0, 12)
+		helpBtn.BackgroundColor3 = isLight and Color3.fromRGB(220, 220, 224) or Color3.fromRGB(55, 58, 70)
+		helpBtn.BorderSizePixel = 0
+		helpBtn.Text = "?"
+		helpBtn.TextSize = 12
+		helpBtn.FontFace = staconfFont(Enum.FontWeight.Bold)
+		helpBtn.TextColor3 = isLight and Color3.fromRGB(120, 120, 125) or Color3.fromRGB(160, 165, 175)
+		local hCorner = Instance.new("UICorner")
+		hCorner.CornerRadius = UDim.new(1, 0)
+		hCorner.Parent = helpBtn
+		helpBtn.ZIndex = 15
+		if typeof(options.Help) == "function" then
+			helpBtn.MouseButton1Click:Connect(options.Help)
+		end
+		helpBtn.Parent = layoutIgnore
+	end
+
+	local padding = Instance.new("UIPadding")
+	padding.PaddingTop = UDim.new(0, 26)
+	padding.PaddingBottom = UDim.new(0, 20)
+	padding.PaddingLeft = UDim.new(0, 22)
+	padding.PaddingRight = UDim.new(0, 22)
+	padding.Parent = card
+
+	local list = Instance.new("UIListLayout")
+	list.FillDirection = Enum.FillDirection.Vertical
+	list.SortOrder = Enum.SortOrder.LayoutOrder
+	list.HorizontalAlignment = Enum.HorizontalAlignment.Center
+	list.Padding = UDim.new(0, 12)
+	list.Parent = card
+
+	if options.Icon ~= false then
+		local iconType = options.Icon or "Warning"
+		local iconImg = Instance.new("ImageLabel")
+		iconImg.Name = "Icon"
+		iconImg.Size = UDim2.fromOffset(62, 62)
+		iconImg.BackgroundTransparency = 1
+		iconImg.LayoutOrder = 1
+		iconImg.ZIndex = 12
+
+		if iconType == "Warning" then
+			iconImg.Image = "rbxassetid://10709775963"
+			iconImg.ImageColor3 = Color3.fromRGB(248, 192, 10)
+		elseif iconType == "Lock" then
+			iconImg.Image = "rbxassetid://10747372167"
+			iconImg.ImageColor3 = Color3.fromRGB(245, 160, 30)
+		elseif iconType == "Info" then
+			iconImg.Image = "rbxassetid://10723415903"
+			iconImg.ImageColor3 = Color3.fromRGB(0, 122, 255)
+		elseif iconType == "Question" then
+			iconImg.Image = "rbxassetid://10723406988"
+			iconImg.ImageColor3 = Color3.fromRGB(140, 145, 160)
+		elseif typeof(iconType) == "string" then
+			iconImg.Image = iconType
+			if options.IconColor then iconImg.ImageColor3 = options.IconColor end
+		end
+		iconImg.Parent = card
+	end
+
+	local titleLabel = Instance.new("TextLabel")
+	titleLabel.Name = "Title"
+	titleLabel.Text = options.Title or "Alert"
+	titleLabel.Size = UDim2.new(1, 0, 0, 0)
+	titleLabel.AutomaticSize = Enum.AutomaticSize.Y
+	titleLabel.FontFace = staconfFont(Enum.FontWeight.Bold)
+	titleLabel.TextSize = 14
+	titleLabel.TextWrapped = true
+	titleLabel.TextXAlignment = Enum.TextXAlignment.Center
+	titleLabel.TextColor3 = isLight and Color3.fromRGB(25, 25, 28) or Color3.fromRGB(245, 245, 250)
+	titleLabel.BackgroundTransparency = 1
+	titleLabel.LayoutOrder = 2
+	titleLabel.ZIndex = 12
+	titleLabel.Parent = card
+
+	local descLabel = nil
+	if options.Description and #options.Description > 0 then
+		descLabel = Instance.new("TextLabel")
+		descLabel.Name = "Description"
+		descLabel.Text = options.Description
+		descLabel.Size = UDim2.new(1, 0, 0, 0)
+		descLabel.AutomaticSize = Enum.AutomaticSize.Y
+		descLabel.FontFace = staconfFont(Enum.FontWeight.Regular)
+		descLabel.TextSize = 11.5
+		descLabel.TextWrapped = true
+		descLabel.TextXAlignment = Enum.TextXAlignment.Center
+		descLabel.TextColor3 = isLight and Color3.fromRGB(65, 65, 70) or Color3.fromRGB(195, 198, 208)
+		descLabel.BackgroundTransparency = 1
+		descLabel.LayoutOrder = 3
+		descLabel.ZIndex = 12
+		descLabel.Parent = card
+	end
+
+	local footnoteLabel = nil
+	if options.Footnote and #options.Footnote > 0 then
+		footnoteLabel = Instance.new("TextLabel")
+		footnoteLabel.Name = "Footnote"
+		footnoteLabel.Text = options.Footnote
+		footnoteLabel.Size = UDim2.new(1, 0, 0, 0)
+		footnoteLabel.AutomaticSize = Enum.AutomaticSize.Y
+		footnoteLabel.FontFace = staconfFont(Enum.FontWeight.Regular)
+		footnoteLabel.TextSize = 10.5
+		footnoteLabel.TextWrapped = true
+		footnoteLabel.TextXAlignment = Enum.TextXAlignment.Center
+		footnoteLabel.TextColor3 = isLight and Color3.fromRGB(140, 140, 148) or Color3.fromRGB(120, 125, 138)
+		footnoteLabel.BackgroundTransparency = 1
+		footnoteLabel.LayoutOrder = 4
+		footnoteLabel.ZIndex = 12
+		footnoteLabel.Parent = card
+	end
+
+	local inputBoxes = {}
+	if options.Inputs and #options.Inputs > 0 then
+		local inputsFrame = Instance.new("Frame")
+		inputsFrame.Name = "InputsContainer"
+		inputsFrame.Size = UDim2.new(1, 0, 0, 0)
+		inputsFrame.AutomaticSize = Enum.AutomaticSize.Y
+		inputsFrame.BackgroundTransparency = 1
+		inputsFrame.LayoutOrder = 5
+		inputsFrame.ZIndex = 12
+
+		local iList = Instance.new("UIListLayout")
+		iList.FillDirection = Enum.FillDirection.Vertical
+		iList.SortOrder = Enum.SortOrder.LayoutOrder
+		iList.Padding = UDim.new(0, 8)
+		iList.Parent = inputsFrame
+
+		for idx, inp in ipairs(options.Inputs) do
+			local iCard = Instance.new("Frame")
+			iCard.Name = "Input_" .. tostring(idx)
+			iCard.Size = UDim2.new(1, 0, 0, 28)
+			iCard.BackgroundColor3 = isLight and Color3.fromRGB(222, 224, 230) or Color3.fromRGB(48, 52, 65)
+			iCard.BorderSizePixel = 0
+			iCard.ZIndex = 13
+
+			local iCorner = Instance.new("UICorner")
+			iCorner.CornerRadius = UDim.new(0, 7)
+			iCorner.Parent = iCard
+
+			local iStroke = Instance.new("UIStroke")
+			iStroke.Thickness = 1
+			iStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+			iStroke.Color = isLight and Color3.fromRGB(195, 198, 208) or Color3.fromRGB(65, 70, 85)
+			iStroke.Parent = iCard
+
+			local tb = Instance.new("TextBox")
+			tb.Size = UDim2.new(1, -16, 1, 0)
+			tb.Position = UDim2.new(0, 8, 0, 0)
+			tb.BackgroundTransparency = 1
+			tb.Text = inp.Text or ""
+			tb.PlaceholderText = inp.Placeholder or ""
+			tb.FontFace = staconfFont(Enum.FontWeight.Regular)
+			tb.TextSize = 12.5
+			tb.TextColor3 = isLight and Color3.fromRGB(25, 25, 28) or Color3.fromRGB(245, 245, 250)
+			tb.PlaceholderColor3 = isLight and Color3.fromRGB(140, 145, 155) or Color3.fromRGB(125, 130, 145)
+			tb.TextXAlignment = Enum.TextXAlignment.Left
+			tb.ClearTextOnFocus = false
+			tb.ZIndex = 14
+
+			tb.Focused:Connect(function()
+				iStroke.Color = Color3.fromRGB(0, 122, 255)
+				iStroke.Thickness = 2
+			end)
+			tb.FocusLost:Connect(function()
+				iStroke.Color = isLight and Color3.fromRGB(195, 198, 208) or Color3.fromRGB(65, 70, 85)
+				iStroke.Thickness = 1
+			end)
+
+			tb.Parent = iCard
+			iCard.Parent = inputsFrame
+			inputBoxes[inp.Key or idx] = tb
+		end
+		inputsFrame.Parent = card
+	end
+
+	local btnRow = Instance.new("Frame")
+	btnRow.Name = "ButtonsRow"
+	btnRow.Size = UDim2.new(1, 0, 0, 32)
+	btnRow.BackgroundTransparency = 1
+	btnRow.LayoutOrder = 6
+	btnRow.ZIndex = 12
+
+	local bList = Instance.new("UIListLayout")
+	bList.FillDirection = Enum.FillDirection.Horizontal
+	bList.HorizontalAlignment = Enum.HorizontalAlignment.Center
+	bList.SortOrder = Enum.SortOrder.LayoutOrder
+	bList.Padding = UDim.new(0, 10)
+	bList.Parent = btnRow
+
+	local buttonDefs = options.Buttons or {
+		{ Text = "Cancel", Style = "Secondary" },
+		{ Text = "OK", Style = "Primary" },
+	}
+
+	local btnCount = #buttonDefs
+	local dialogHandle = {}
+
+	local isClosed = false
+	local function closeDialog()
+		if isClosed then return end
+		isClosed = true
+		if scrim then
+			tweenService:Create(scrim, TweenInfo.new(0.2, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), { BackgroundTransparency = 1 }):Play()
+		end
+		tweenService:Create(card, TweenInfo.new(0.2, Enum.EasingStyle.Quart, Enum.EasingDirection.In), {
+			Position = UDim2.new(card.Position.X.Scale, card.Position.X.Offset, card.Position.Y.Scale, card.Position.Y.Offset + 12),
+			BackgroundTransparency = 1,
+		}):Play()
+		local t = tweenService:Create(cardScale, TweenInfo.new(0.2, Enum.EasingStyle.Quart, Enum.EasingDirection.In), { Scale = 0.88 })
+		t:Play()
+		t.Completed:Connect(function()
+			dialogContainer:Destroy()
+			for i, d in ipairs(activeDialogs) do
+				if d == dialogHandle then
+					table.remove(activeDialogs, i)
+					break
+				end
+			end
+			if options.OnClose then pcall(options.OnClose) end
+		end)
+	end
+
+	dialogHandle.Close = closeDialog
+	dialogHandle.Card = card
+	dialogHandle.Container = dialogContainer
+	dialogHandle.SetTitle = function(newTitle) titleLabel.Text = newTitle end
+	dialogHandle.SetDescription = function(newDesc)
+		if descLabel then descLabel.Text = newDesc end
+	end
+	dialogHandle.GetInputs = function()
+		local res = {}
+		for k, v in pairs(inputBoxes) do res[k] = v.Text end
+		return res
+	end
+
+	for bIdx, bConf in ipairs(buttonDefs) do
+		local btn = Instance.new("TextButton")
+		btn.Name = "Button_" .. tostring(bIdx)
+		btn.Text = bConf.Text or "Button"
+		btn.AutoButtonColor = false
+		btn.LayoutOrder = bIdx
+		btn.BorderSizePixel = 0
+		btn.ZIndex = 14
+
+		if btnCount == 1 then
+			btn.Size = UDim2.new(1, 0, 1, 0)
+		elseif btnCount == 2 then
+			btn.Size = UDim2.new(0.5, -5, 1, 0)
+		else
+			btn.Size = UDim2.new(1 / btnCount, -math.floor(10 * (btnCount - 1) / btnCount), 1, 0)
+		end
+
+		local bCorner = Instance.new("UICorner")
+		bCorner.CornerRadius = UDim.new(0, 8)
+		bCorner.Parent = btn
+
+		local isPrimary = (bConf.Style == "Primary")
+		local isDestructive = (bConf.Style == "Destructive")
+
+		if isPrimary then
+			btn.BackgroundColor3 = Color3.fromRGB(0, 122, 255)
+			btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+			btn.FontFace = staconfFont(Enum.FontWeight.Bold)
+			btn.TextSize = 13
+		elseif isDestructive then
+			btn.BackgroundColor3 = Color3.fromRGB(255, 59, 48)
+			btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+			btn.FontFace = staconfFont(Enum.FontWeight.Bold)
+			btn.TextSize = 13
+		else
+			btn.BackgroundColor3 = isLight and Color3.fromRGB(216, 217, 222) or Color3.fromRGB(56, 58, 68)
+			btn.TextColor3 = isLight and Color3.fromRGB(30, 30, 35) or Color3.fromRGB(240, 240, 245)
+			btn.FontFace = staconfFont(Enum.FontWeight.Regular)
+			btn.TextSize = 13
+
+			local bStroke = Instance.new("UIStroke")
+			bStroke.Thickness = 1
+			bStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+			bStroke.Color = isLight and Color3.fromRGB(185, 186, 195) or Color3.fromRGB(75, 78, 90)
+			bStroke.Parent = btn
+		end
+
+		local baseColor = btn.BackgroundColor3
+		btn.MouseEnter:Connect(function()
+			if isPrimary then
+				btn.BackgroundColor3 = Color3.fromRGB(28, 138, 255)
+			elseif isDestructive then
+				btn.BackgroundColor3 = Color3.fromRGB(255, 78, 68)
+			else
+				btn.BackgroundColor3 = isLight and Color3.fromRGB(208, 210, 216) or Color3.fromRGB(66, 69, 82)
+			end
+		end)
+		btn.MouseLeave:Connect(function()
+			btn.BackgroundColor3 = baseColor
+		end)
+
+		btn.MouseButton1Click:Connect(function()
+			local vals = dialogHandle.GetInputs()
+			if bConf.Callback then
+				local keepOpen = bConf.Callback(dialogHandle, vals)
+				if keepOpen ~= true then closeDialog() end
+			else
+				closeDialog()
+			end
+		end)
+
+		btn.Parent = btnRow
+	end
+	btnRow.Parent = card
+
+	local dragging = false
+	local dragStart = nil
+	local startPos = nil
+
+	card.InputBegan:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+			dragging = true
+			dragStart = input.Position
+			startPos = card.Position
+			input.Changed:Connect(function()
+				if input.UserInputState == Enum.UserInputState.End then
+					dragging = false
+				end
+			end)
+		end
+	end)
+
+	userInputService.InputChanged:Connect(function(input)
+		if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+			local delta = input.Position - dragStart
+			card.Position = UDim2.new(
+				startPos.X.Scale,
+				startPos.X.Offset + delta.X,
+				startPos.Y.Scale,
+				startPos.Y.Offset + delta.Y
+			)
+		end
+	end)
+
+	if scrim and options.CloseOnScrimClick then
+		scrim.MouseButton1Click:Connect(closeDialog)
+	end
+
+	card.Parent = dialogContainer
+	dialogContainer.Parent = parentGui
+	table.insert(activeDialogs, dialogHandle)
+
+	if scrim then
+		tweenService:Create(scrim, TweenInfo.new(0.28, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), { BackgroundTransparency = 0.4 }):Play()
+	end
+	tweenService:Create(card, TweenInfo.new(0.32, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+		Position = UDim2.new(0.5, 0, 0.48, 0),
+		BackgroundTransparency = 0,
+	}):Play()
+	tweenService:Create(cardScale, TweenInfo.new(0.32, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = 1 }):Play()
+
+	return dialogHandle
+end
+
+_G.StaconfDialog = showDialog
+_G.StacOnfDialog = showDialog
+app.Dialog = showDialog
+window.Dialog = showDialog
 
 local function createMiddlePanel(targetGui)
 	local body = targetGui:FindFirstChild("Body", true)
@@ -1617,9 +2113,9 @@ local function installSidebarChrome(targetGui)
 		refreshing = true
 		local light = currentMode == "Light"
 		body.BackgroundTransparency = 1
-		sidebar.BackgroundTransparency = hasWindowGlass and (light and 0.10 or 0.18) or 0
+		sidebar.BackgroundTransparency = hasWindowGlass and (light and 0.10 or 0.135) or 0
 		sidebar.BackgroundColor3 = light and Color3.fromRGB(236, 239, 244) or Color3.fromRGB(24, 28, 40)
-		content.BackgroundTransparency = hasWindowGlass and (light and 0.08 or 0.21) or 0
+		content.BackgroundTransparency = hasWindowGlass and (light and 0.08 or 0.1575) or 0
 		content.BackgroundColor3 = light and Color3.fromRGB(249, 250, 252) or Color3.fromRGB(17, 20, 30)
 		searchBody.BackgroundColor3 = light and Color3.fromRGB(247, 248, 250) or Color3.fromRGB(43, 46, 57)
 		searchBody.BackgroundTransparency = 0
@@ -2150,6 +2646,51 @@ do
 					Title = "GC Complete",
 					Subtitle = ("Freed ~%d KB of client memory"):format(math.max(0, before - after)),
 					Duration = 3.5,
+				})
+			end,
+		})
+	end
+
+	do
+		local row = titledRow(diagForm, "Security Warning Dialog", "Show standalone macOS security alert dialog")
+		row:Right():Button({
+			Label = "Show Alert...",
+			State = "Secondary",
+			Pushed = function()
+				showDialog({
+					Type = "Alert",
+					Icon = "Warning",
+					Title = 'macOS cannot verify the developer of "Accusys_IP_Mac_3.7.0.mpkg". Are you sure you want to open it?',
+					Description = "By opening this app, you will be overriding system security which can expose your computer and personal information to malware that may harm your Mac or compromise your privacy.",
+					Footnote = "Safari downloaded this file on 26 April 2021.",
+					Buttons = {
+						{ Text = "Open", Style = "Secondary", Callback = function() end },
+						{ Text = "Cancel", Style = "Primary", Callback = function() end },
+					},
+				})
+			end,
+		})
+	end
+
+	do
+		local row = titledRow(diagForm, "Permission Prompt Dialog", "Show standalone administrator credentials prompt")
+		row:Right():Button({
+			Label = "Show Prompt...",
+			State = "Secondary",
+			Pushed = function()
+				showDialog({
+					Type = "Prompt",
+					Icon = "Lock",
+					Title = "MacUpdater",
+					Description = "MacUpdater wants permission to update.\n\nEnter an administrator's name and password to allow this.",
+					Inputs = {
+						{ Placeholder = "Username", Key = "user" },
+						{ Placeholder = "Password", Key = "pass", Hidden = true },
+					},
+					Buttons = {
+						{ Text = "Cancel", Style = "Secondary", Callback = function() end },
+						{ Text = "OK", Style = "Primary", Callback = function(dlg, vals) end },
+					},
 				})
 			end,
 		})
