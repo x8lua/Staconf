@@ -2335,6 +2335,7 @@ end
 
 local refreshSidebarChrome
 local refreshSidebarSelection
+local refreshSubTabs
 local refreshAccountPage
 local accountTab
 local chromeConnections = {}
@@ -2794,10 +2795,231 @@ local function applyModernVisuals(targetGui)
 		for _, descendant in ipairs(targetGui:GetDescendants()) do applyLocalFont(descendant) end
 	end
 	installSidebarChrome(targetGui)
+	local subTabContainers = {}
+	local activeSubTabBtn = nil
+
+	local function getSelectedMainTabName()
+		for _, item in ipairs(targetGui:GetDescendants()) do
+			if item.Name == "SidebarItem" and item:IsA("GuiObject") and not item:GetAttribute("IsSubTab") then
+				if item.BackgroundTransparency < 0.5 then
+					local title = item:FindFirstChild("Title", true)
+					if title and title:IsA("TextLabel") then return title.Text end
+				end
+			end
+		end
+		return nil
+	end
+
+	local function scrollMainTabToSection(sectionTitle)
+		local contentList = nil
+		for _, desc in ipairs(targetGui:GetDescendants()) do
+			if desc.Name == "ContentList" and desc:IsA("ScrollingFrame") and desc.Visible then
+				contentList = desc
+				break
+			end
+		end
+		if not contentList then return end
+		local targetSection = nil
+		for _, child in ipairs(contentList:GetChildren()) do
+			if child.Name == "PageSection" and child:IsA("GuiObject") then
+				local title = child:FindFirstChild("Title", true)
+				if title and (title.Text == sectionTitle or title.Text:find(sectionTitle, 1, true)) then
+					targetSection = child
+					break
+				end
+			end
+		end
+		if targetSection then
+			local offset = targetSection.AbsolutePosition.Y - contentList.AbsolutePosition.Y + contentList.CanvasPosition.Y
+			tweenService:Create(contentList, TweenInfo.new(0.3, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {
+				CanvasPosition = Vector2.new(0, math.max(0, offset - 8))
+			}):Play()
+		end
+	end
+
+	refreshSubTabs = function()
+		if not targetGui.Parent then return end
+		local selectedTab = getSelectedMainTabName()
+		local light = currentMode == "Light"
+		local accent = (app.Theme and app.Theme.Controls and app.Theme.Controls.Selection and app.Theme.Controls.Selection[1] and app.Theme.Controls.Selection[1].Value) or Color3.fromRGB(10, 130, 255)
+
+		for tabName, container in pairs(subTabContainers) do
+			local isOpen = (tabName == selectedTab)
+			local count = 0
+			for _, child in ipairs(container:GetChildren()) do
+				if child:IsA("TextButton") then count += 1 end
+			end
+			local targetH = isOpen and (count * 28 + 4) or 0
+
+			tweenService:Create(container, TweenInfo.new(0.24, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {
+				Size = UDim2.new(1, 0, 0, targetH)
+			}):Play()
+
+			for _, subBtn in ipairs(container:GetChildren()) do
+				if subBtn:IsA("TextButton") then
+					local titleLabel = subBtn:FindFirstChild("Title")
+					local ind = subBtn:FindFirstChild("Indicator")
+					local isSelectedSub = (subBtn == activeSubTabBtn and isOpen)
+					if titleLabel then
+						titleLabel.TextColor3 = isSelectedSub and (light and Color3.fromRGB(24, 26, 32) or Color3.new(1, 1, 1)) or (light and Color3.fromRGB(108, 113, 125) or Color3.fromRGB(160, 165, 180))
+						titleLabel.FontFace = Font.new(titleLabel.FontFace.Family, isSelectedSub and Enum.FontWeight.SemiBold or Enum.FontWeight.Medium)
+					end
+					if ind then
+						ind.BackgroundColor3 = isSelectedSub and accent or (light and Color3.fromRGB(190, 195, 205) or Color3.fromRGB(90, 95, 110))
+						ind.Size = isSelectedSub and UDim2.fromOffset(6, 6) or UDim2.fromOffset(4, 4)
+					end
+					subBtn.BackgroundColor3 = light and Color3.fromRGB(216, 218, 224) or Color3.fromRGB(50, 54, 68)
+					subBtn.BackgroundTransparency = isSelectedSub and (light and 0.45 or 0.6) or 1
+				end
+			end
+		end
+	end
+
+	local function buildSubTabItem(parentContainer, labelText, sectionTargetName)
+		local subBtn = Instance.new("TextButton")
+		subBtn.Name = "SubTabItem"
+		subBtn.AutoButtonColor = false
+		subBtn.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+		subBtn.BackgroundTransparency = 1
+		subBtn.BorderSizePixel = 0
+		subBtn.Size = UDim2.new(1, 0, 0, 26)
+		subBtn.Text = ""
+		subBtn:SetAttribute("IsSubTab", true)
+		subBtn.Parent = parentContainer
+
+		local subCorner = Instance.new("UICorner")
+		subCorner.CornerRadius = UDim.new(0, 6)
+		subCorner.Parent = subBtn
+
+		local indicator = Instance.new("Frame")
+		indicator.Name = "Indicator"
+		indicator.AnchorPoint = Vector2.new(0.5, 0.5)
+		indicator.Position = UDim2.new(0, 15, 0.5, 0)
+		indicator.Size = UDim2.fromOffset(4, 4)
+		indicator.BorderSizePixel = 0
+		indicator.BackgroundColor3 = Color3.fromRGB(120, 125, 140)
+		indicator.Parent = subBtn
+
+		local indCorner = Instance.new("UICorner")
+		indCorner.CornerRadius = UDim.new(1, 0)
+		indCorner.Parent = indicator
+
+		local title = Instance.new("TextLabel")
+		title.Name = "Title"
+		title.BackgroundTransparency = 1
+		title.FontFace = staconfFont(Enum.FontWeight.Medium)
+		title.TextSize = 13
+		title.TextColor3 = Color3.fromRGB(160, 165, 180)
+		title.TextXAlignment = Enum.TextXAlignment.Left
+		title.TextYAlignment = Enum.TextYAlignment.Center
+		title.Position = UDim2.new(0, 26, 0, 0)
+		title.Size = UDim2.new(1, -30, 1, 0)
+		title.Text = labelText
+		title.Parent = subBtn
+
+		subBtn.MouseEnter:Connect(function()
+			if subBtn ~= activeSubTabBtn then
+				subBtn.BackgroundTransparency = currentMode == "Light" and 0.75 or 0.82
+			end
+		end)
+		subBtn.MouseLeave:Connect(function()
+			if subBtn ~= activeSubTabBtn then
+				subBtn.BackgroundTransparency = 1
+			end
+		end)
+		subBtn.Activated:Connect(function()
+			activeSubTabBtn = subBtn
+			refreshSubTabs()
+			scrollMainTabToSection(sectionTargetName)
+		end)
+
+		return subBtn
+	end
+
+	local tabSectionsMap = {
+		Telemetry = {
+			{ Label = "Performance", Target = "Performance & Display" },
+			{ Label = "Diagnostics", Target = "Diagnostics & Maintenance" },
+		},
+		Atmosphere = {
+			{ Label = "Lighting Engine", Target = "Lighting Engine" },
+		},
+		Locomotion = {
+			{ Label = "Vectors", Target = "Movement Vectors" },
+		},
+		Appearance = {
+			{ Label = "Mode & Palette", Target = "Appearance" },
+			{ Label = "Theme Accent", Target = "Theme" },
+			{ Label = "Window Glass", Target = "Window Effects" },
+		},
+		Settings = {
+			{ Label = "Liquid Glass", Target = "Liquid Glass" },
+			{ Label = "Configuration", Target = "Configuration" },
+			{ Label = "Profiles", Target = "Manage profiles" },
+			{ Label = "Uninstall", Target = "Uninstall" },
+		},
+	}
+
+	local function setupSubTabs()
+		local sidebarList = nil
+		for _, desc in ipairs(targetGui:GetDescendants()) do
+			if desc.Name == "SidebarList" and desc:IsA("ScrollingFrame") then
+				sidebarList = desc
+				break
+			end
+		end
+		if not sidebarList then return end
+
+		local tabIndex = 0
+		for _, item in ipairs(sidebarList:GetChildren()) do
+			if item.Name == "SidebarItem" and item:IsA("GuiObject") and not item:GetAttribute("IsSubTab") then
+				item.LayoutOrder = tabIndex * 2
+				local titleObj = item:FindFirstChild("Title", true)
+				local tabName = titleObj and titleObj.Text
+				local subDefs = tabSectionsMap[tabName]
+				if subDefs then
+					local container = subTabContainers[tabName]
+					if not container then
+						container = Instance.new("Frame")
+						container.Name = "SubTabs_" .. tabName
+						container.BackgroundTransparency = 1
+						container.BorderSizePixel = 0
+						container.ClipsDescendants = true
+						container.Size = UDim2.new(1, 0, 0, 0)
+						container.Parent = sidebarList
+
+						local pad = Instance.new("UIPadding")
+						pad.PaddingLeft = UDim.new(0, 16)
+						pad.PaddingRight = UDim.new(0, 4)
+						pad.PaddingTop = UDim.new(0, 2)
+						pad.PaddingBottom = UDim.new(0, 2)
+						pad.Parent = container
+
+						local layout = Instance.new("UIListLayout")
+						layout.SortOrder = Enum.SortOrder.LayoutOrder
+						layout.Padding = UDim.new(0, 2)
+						layout.Parent = container
+
+						for idx, def in ipairs(subDefs) do
+							local subItem = buildSubTabItem(container, def.Label, def.Target)
+							subItem.LayoutOrder = idx
+						end
+
+						subTabContainers[tabName] = container
+					end
+					container.LayoutOrder = tabIndex * 2 + 1
+				end
+				tabIndex += 1
+			end
+		end
+		refreshSubTabs()
+	end
+
 	refreshSidebarSelection = function()
 		if not targetGui.Parent then return end
+		setupSubTabs()
 		for _, item in ipairs(targetGui:GetDescendants()) do
-			if item.Name == "SidebarItem" and item:IsA("GuiObject") then
+			if item.Name == "SidebarItem" and item:IsA("GuiObject") and not item:GetAttribute("IsSubTab") then
 				local selected = item.BackgroundTransparency < 0.5
 				item.BackgroundColor3 = currentMode == "Light" and Color3.fromRGB(226, 227, 230) or Color3.fromRGB(10, 130, 255)
 				local title = item:FindFirstChild("Title", true)
@@ -2806,6 +3028,7 @@ local function applyModernVisuals(targetGui)
 				end
 			end
 		end
+		refreshSubTabs()
 	end
 	refreshSidebarSelection()
 
@@ -2882,6 +3105,7 @@ local function smoothTransition(newMode, newAccentName)
 	if refreshTooltipTheme then refreshTooltipTheme() end
 	if refreshSidebarChrome then refreshSidebarChrome() end
 	if refreshSidebarSelection then refreshSidebarSelection() end
+	if refreshSubTabs then refreshSubTabs() end
 	if refreshMiddlePanel then refreshMiddlePanel() end
 	if refreshAccountPage then refreshAccountPage() end
 	for _, dlg in ipairs(activeDialogs) do
