@@ -1022,12 +1022,15 @@ local function createTooltipManager(owner, parent)
 	end
 
 	local function cleanup()
+		if not alive then return end
 		alive = false
 		glass.Destroy()
 		hide()
-		gui:Destroy()
 	end
-	owner.Destroying:Connect(cleanup)
+	owner.Destroying:Connect(function()
+		cleanup()
+		pcall(function() gui:Destroy() end)
+	end)
 	gui.Destroying:Connect(cleanup)
 
 	return {
