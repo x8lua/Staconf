@@ -32005,8 +32005,7 @@ addToggle(desyncSec, "Apply to M1", "Desync light attacks", controller.AttackDes
 addToggle(desyncSec, "Apply to M2", "Desync heavy attacks", controller.AttackDesyncStates.ApplyM2)
 
 local trackSec = combatTab:Section({ Title = "Target Tracking" })
-addDropdown(trackSec, "Pivot Mode", "Model pivoting method", {"Character Model", "Camera View"}, controller.TrackingStates.Mode, nil, "Character Model = pivots humanoid root part
-Camera View = shifts camera view smoothly")
+addDropdown(trackSec, "Pivot Mode", "Model pivoting method", {"Character Model", "Camera View"}, controller.TrackingStates.Mode, nil, "Character Model = pivots humanoid root part\\nCamera View = shifts camera view smoothly")
 addToggle(trackSec, "Rapid Threat Switch", "Snap facing angle to new threats", controller.TrackingStates.RapidSwitch)
 addToggle(trackSec, "Impact Angle Lock", "Lock onto attacker before contact", controller.TrackingStates.ImpactSnap)
 addSlider(trackSec, "Tracking Smoothness", "Interpolation factor", 0.1, 1.0, 0.5, "%.2f", controller.TrackingStates.Smoothness)
