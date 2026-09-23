@@ -1081,7 +1081,7 @@ local function showDialog(options)
 	cardWrapper.ZIndex = 10
 
 	local cardScale = Instance.new("UIScale")
-	cardScale.Scale = 0.88
+	cardScale.Scale = 1.0
 	cardScale.Parent = cardWrapper
 
 	local card = Instance.new("CanvasGroup")
@@ -1139,19 +1139,36 @@ local function showDialog(options)
 		helpBtn.Parent = layoutIgnore
 	end
 
+	local innerContent = Instance.new("Frame")
+	innerContent.Name = "InnerContent"
+	innerContent.Size = UDim2.fromScale(1, 0)
+	innerContent.AutomaticSize = Enum.AutomaticSize.Y
+	innerContent.BackgroundTransparency = 1
+	innerContent.BorderSizePixel = 0
+	innerContent.ZIndex = 11
+	innerContent.Parent = card
+
+	local innerScale = Instance.new("UIScale")
+	innerScale.Scale = 1
+	innerScale.Parent = innerContent
+
+	cardScale:GetPropertyChangedSignal("Scale"):Connect(function()
+		innerScale.Scale = 1 / math.max(0.01, cardScale.Scale)
+	end)
+
 	local padding = Instance.new("UIPadding")
 	padding.PaddingTop = UDim.new(0, 20)
 	padding.PaddingBottom = UDim.new(0, 18)
 	padding.PaddingLeft = UDim.new(0, 20)
 	padding.PaddingRight = UDim.new(0, 20)
-	padding.Parent = card
+	padding.Parent = innerContent
 
 	local list = Instance.new("UIListLayout")
 	list.FillDirection = Enum.FillDirection.Vertical
 	list.SortOrder = Enum.SortOrder.LayoutOrder
 	list.HorizontalAlignment = Enum.HorizontalAlignment.Center
 	list.Padding = UDim.new(0, 10)
-	list.Parent = card
+	list.Parent = innerContent
 
 	if options.Icon ~= false then
 		local iconType = options.Icon or "Warning"
@@ -1178,7 +1195,7 @@ local function showDialog(options)
 			iconImg.Image = iconType
 			if options.IconColor then iconImg.ImageColor3 = options.IconColor end
 		end
-		iconImg.Parent = card
+		iconImg.Parent = innerContent
 	end
 
 	local titleLabel = Instance.new("TextLabel")
@@ -1195,7 +1212,7 @@ local function showDialog(options)
 	titleLabel.BackgroundTransparency = 1
 	titleLabel.LayoutOrder = 2
 	titleLabel.ZIndex = 12
-	titleLabel.Parent = card
+	titleLabel.Parent = innerContent
 
 	local descLabel = nil
 	local descText = options.Description or options.Content
@@ -1214,7 +1231,7 @@ local function showDialog(options)
 		descLabel.BackgroundTransparency = 1
 		descLabel.LayoutOrder = 3
 		descLabel.ZIndex = 12
-		descLabel.Parent = card
+		descLabel.Parent = innerContent
 	end
 
 	local footnoteLabel = nil
@@ -1233,7 +1250,7 @@ local function showDialog(options)
 		footnoteLabel.BackgroundTransparency = 1
 		footnoteLabel.LayoutOrder = 4
 		footnoteLabel.ZIndex = 12
-		footnoteLabel.Parent = card
+		footnoteLabel.Parent = innerContent
 	end
 
 	local inputBoxes = {}
@@ -1300,7 +1317,7 @@ local function showDialog(options)
 			inputBoxes[inp.Key or idx] = tb
 			table.insert(inputsRegistry, { card = iCard, stroke = iStroke, tb = tb })
 		end
-		inputsFrame.Parent = card
+		inputsFrame.Parent = innerContent
 	end
 
 	local btnRow = Instance.new("Frame")
@@ -1532,7 +1549,7 @@ local function showDialog(options)
 		btn.Parent = btnRow
 		table.insert(buttonsRegistry, { btn = btn, stroke = bStroke, style = bConf.Style or "Secondary" })
 	end
-	btnRow.Parent = card
+	btnRow.Parent = innerContent
 
 	local dragging = false
 	local dragStart = nil
@@ -1585,12 +1602,12 @@ local function showDialog(options)
 		tweenService:Create(scrim, TweenInfo.new(0.2, Enum.EasingStyle.Linear), { BackgroundTransparency = isLight and 0.65 or 0.45 }):Play()
 	end
 	local fadeIn = tweenService:Create(card, TweenInfo.new(0.2, Enum.EasingStyle.Linear), { GroupTransparency = 0 })
-	local expandMain = tweenService:Create(cardScale, TweenInfo.new(0.2, Enum.EasingStyle.Linear), { Scale = 1.05 })
+	local expandMain = tweenService:Create(cardScale, TweenInfo.new(0.2, Enum.EasingStyle.Linear), { Scale = 1.02 })
 	fadeIn:Play()
 	expandMain:Play()
 	expandMain.Completed:Connect(function()
 		if isClosed then return end
-		tweenService:Create(cardScale, TweenInfo.new(0.1, Enum.EasingStyle.Linear), { Scale = 1.0 }):Play()
+		tweenService:Create(cardScale, TweenInfo.new(0.5, Enum.EasingStyle.Linear), { Scale = 1.0 }):Play()
 	end)
 
 	return dialogHandle
