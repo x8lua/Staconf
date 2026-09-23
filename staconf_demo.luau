@@ -2686,6 +2686,7 @@ local function installSidebarChrome(targetGui)
 			Locomotion = { Bg = Color3.fromRGB(52, 199, 89), Sym = cascade.Symbols.gaugeWithDotsNeedle67percent },
 			Appearance = { Bg = Color3.fromRGB(44, 44, 46), Sym = getAsset("appearance.png", "https://raw.githubusercontent.com/x8lua/Staconf/main/assets/appearance.png") },
 			Settings = { Bg = Color3.fromRGB(80, 84, 98), Sym = getAsset("config.png", "https://raw.githubusercontent.com/x8lua/Staconf/main/assets/config.png") },
+			["Users & Groups"] = { Bg = Color3.fromRGB(0, 122, 255), Sym = cascade.Symbols.personCropCircleFill or cascade.Symbols.person2Fill or cascade.Symbols.sliderHorizontal3 },
 		}
 
 		local lowerQ = q:lower()
@@ -2776,6 +2777,9 @@ local function installSidebarChrome(targetGui)
 					if group.TabObj then
 						group.TabObj.Selected = true
 						if window.addToHistory then window.addToHistory(group.TabObj.__container) end
+						if group.TabObj == accountTab and refreshAccountPage then
+							task.defer(refreshAccountPage)
+						end
 					end
 				end)
 
@@ -2820,9 +2824,13 @@ local function installSidebarChrome(targetGui)
 						if group.TabObj then
 							group.TabObj.Selected = true
 							if window.addToHistory then window.addToHistory(group.TabObj.__container) end
-							task.defer(function()
-								scrollMainTabToSection(item.Section)
-							end)
+							if group.TabObj == accountTab and refreshAccountPage then
+								task.defer(refreshAccountPage)
+							elseif item.Section then
+								task.defer(function()
+									scrollMainTabToSection(item.Section)
+								end)
+							end
 						end
 					end)
 				end
@@ -4696,6 +4704,16 @@ searchRegistry = {
 			{ Title = "Delete selected profile", Subtitle = "Remove active preset profile from storage", Section = "Manage profiles" },
 			{ Title = "Restore session defaults", Subtitle = "Saved profiles are kept.", Section = "Manage profiles" },
 			{ Title = "Unload StacOnf", Subtitle = "Removes this UI and its effects; saved profiles remain.", Section = "Uninstall" },
+		},
+	},
+	{
+		TabTitle = "Users & Groups",
+		TabObj = accountTab,
+		Items = {
+			{ Title = "User and group accounts", Subtitle = "View local account profile and details" },
+			{ Title = "User picture", Subtitle = "View profile picture and avatar" },
+			{ Title = "Display Name", Subtitle = "Current user display name" },
+			{ Title = "Login name and password", Subtitle = "Session identification and credentials" },
 		},
 	},
 }
