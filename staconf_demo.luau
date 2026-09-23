@@ -200,6 +200,8 @@ local function unloadStacOnf(fromDestroy)
 	local parent = owner.Parent
 	local notifications = parent and parent:FindFirstChild("StacOnfNotifications")
 	if notifications then notifications:Destroy() end
+	local dialogs = parent and parent:FindFirstChild("StacOnfDialogs")
+	if dialogs then dialogs:Destroy() end
 	if not fromDestroy and owner.Parent then owner:Destroy() end
 end
 
@@ -1029,6 +1031,10 @@ onUnload(function()
 	if dialogGlassHandler then
 		pcall(dialogGlassHandler.Destroy)
 		dialogGlassHandler = nil
+	end
+	if dialogGui and dialogGui.Parent then
+		pcall(function() dialogGui:Destroy() end)
+		dialogGui = nil
 	end
 end)
 
