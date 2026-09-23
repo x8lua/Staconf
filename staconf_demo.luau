@@ -1035,16 +1035,44 @@ local function showDialog(options)
 	end
 
 	local cardWidth = options.Width or 280
+
+	local cardWrapper = Instance.new("Frame")
+	cardWrapper.Name = "CardWrapper"
+	cardWrapper.AnchorPoint = Vector2.new(0.5, 0.5)
+	cardWrapper.Position = UDim2.new(0.5, 0, 0.46, 0)
+	cardWrapper.Size = UDim2.fromOffset(cardWidth, 0)
+	cardWrapper.AutomaticSize = Enum.AutomaticSize.Y
+	cardWrapper.BackgroundTransparency = 1
+	cardWrapper.BorderSizePixel = 0
+	cardWrapper.ZIndex = 10
+
+	local cardScale = Instance.new("UIScale")
+	cardScale.Scale = 0.88
+	cardScale.Parent = cardWrapper
+
+	local shadow = Instance.new("ImageLabel")
+	shadow.Name = "Dropshadow"
+	shadow.AnchorPoint = Vector2.new(0.5, 0.5)
+	shadow.Position = UDim2.fromScale(0.5, 0.5)
+	shadow.Size = UDim2.new(1, 64, 1, 64)
+	shadow.BackgroundTransparency = 1
+	shadow.Image = "rbxassetid://5554236805"
+	shadow.ScaleType = Enum.ScaleType.Slice
+	shadow.SliceCenter = Rect.new(23, 23, 277, 277)
+	shadow.ImageColor3 = Color3.fromRGB(0, 0, 0)
+	shadow.ImageTransparency = isLight and 0.55 or 0.35
+	shadow.ZIndex = 1
+	shadow.Parent = cardWrapper
+
 	local card = Instance.new("Frame")
 	card.Name = "DialogCard"
-	card.AnchorPoint = Vector2.new(0.5, 0.5)
-	card.Position = UDim2.new(0.5, 0, 0.46, 0)
-	card.Size = UDim2.fromOffset(cardWidth, 0)
+	card.Size = UDim2.fromScale(1, 0)
 	card.AutomaticSize = Enum.AutomaticSize.Y
 	card.BorderSizePixel = 0
-	card.ZIndex = 10
-	card.BackgroundColor3 = isLight and Color3.fromRGB(236, 236, 238) or Color3.fromRGB(40, 42, 52)
-	card.BackgroundTransparency = 0.2
+	card.ZIndex = 2
+	card.BackgroundColor3 = isLight and Color3.fromRGB(238, 238, 242) or Color3.fromRGB(38, 40, 50)
+	card.BackgroundTransparency = 0.05
+	card.Parent = cardWrapper
 
 	local cardCorner = Instance.new("UICorner")
 	cardCorner.CornerRadius = UDim.new(0, 22)
@@ -1058,27 +1086,9 @@ local function showDialog(options)
 	cardStroke.Transparency = isLight and 0.88 or 0.85
 	cardStroke.Parent = card
 
-	local cardScale = Instance.new("UIScale")
-	cardScale.Scale = 0.88
-	cardScale.Parent = card
-
 	local layoutIgnore = Instance.new("Folder")
 	layoutIgnore.Name = "LayoutIgnore"
 	layoutIgnore.Parent = card
-
-	local shadow = Instance.new("ImageLabel")
-	shadow.Name = "Dropshadow"
-	shadow.AnchorPoint = Vector2.new(0.5, 0.5)
-	shadow.Position = UDim2.fromScale(0.5, 0.5)
-	shadow.Size = UDim2.new(1, 56, 1, 56)
-	shadow.BackgroundTransparency = 1
-	shadow.Image = "rbxassetid://5554236805"
-	shadow.ScaleType = Enum.ScaleType.Slice
-	shadow.SliceCenter = Rect.new(23, 23, 277, 277)
-	shadow.ImageColor3 = Color3.fromRGB(0, 0, 0)
-	shadow.ImageTransparency = isLight and 0.65 or 0.45
-	shadow.ZIndex = 5
-	shadow.Parent = layoutIgnore
 
 	if options.Help ~= false then
 		local helpBtn = Instance.new("TextButton")
@@ -1120,22 +1130,22 @@ local function showDialog(options)
 		local iconType = options.Icon or "Warning"
 		local iconImg = Instance.new("ImageLabel")
 		iconImg.Name = "Icon"
-		iconImg.Size = UDim2.fromOffset(62, 62)
+		iconImg.Size = UDim2.fromOffset(56, 56)
 		iconImg.BackgroundTransparency = 1
 		iconImg.LayoutOrder = 1
 		iconImg.ZIndex = 12
 
 		if iconType == "Warning" then
-			iconImg.Image = "rbxassetid://10709775963"
-			iconImg.ImageColor3 = Color3.fromRGB(248, 192, 10)
+			iconImg.Image = "rbxassetid://7733658504"
+			iconImg.ImageColor3 = Color3.fromRGB(255, 195, 0)
 		elseif iconType == "Lock" then
-			iconImg.Image = "rbxassetid://10747372167"
+			iconImg.Image = "rbxassetid://7733992528"
 			iconImg.ImageColor3 = Color3.fromRGB(245, 160, 30)
 		elseif iconType == "Info" then
-			iconImg.Image = "rbxassetid://10723415903"
+			iconImg.Image = "rbxassetid://7733964719"
 			iconImg.ImageColor3 = Color3.fromRGB(0, 122, 255)
 		elseif iconType == "Question" then
-			iconImg.Image = "rbxassetid://10723406988"
+			iconImg.Image = "rbxassetid://7733956210"
 			iconImg.ImageColor3 = Color3.fromRGB(140, 145, 160)
 		elseif typeof(iconType) == "string" then
 			iconImg.Image = iconType
@@ -1150,7 +1160,7 @@ local function showDialog(options)
 	titleLabel.Size = UDim2.new(1, 0, 0, 0)
 	titleLabel.AutomaticSize = Enum.AutomaticSize.Y
 	titleLabel.FontFace = staconfFont(Enum.FontWeight.Bold)
-	titleLabel.TextSize = 14
+	titleLabel.TextSize = 13.5
 	titleLabel.TextWrapped = true
 	titleLabel.TextXAlignment = Enum.TextXAlignment.Center
 	titleLabel.TextColor3 = isLight and Color3.fromRGB(25, 25, 28) or Color3.fromRGB(245, 245, 250)
@@ -1288,9 +1298,8 @@ local function showDialog(options)
 		if scrim then
 			tweenService:Create(scrim, TweenInfo.new(0.2, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), { BackgroundTransparency = 1 }):Play()
 		end
-		tweenService:Create(card, TweenInfo.new(0.2, Enum.EasingStyle.Quart, Enum.EasingDirection.In), {
-			Position = UDim2.new(card.Position.X.Scale, card.Position.X.Offset, card.Position.Y.Scale, card.Position.Y.Offset + 12),
-			BackgroundTransparency = 1,
+		tweenService:Create(cardWrapper, TweenInfo.new(0.2, Enum.EasingStyle.Quart, Enum.EasingDirection.In), {
+			Position = UDim2.new(cardWrapper.Position.X.Scale, cardWrapper.Position.X.Offset, cardWrapper.Position.Y.Scale, cardWrapper.Position.Y.Offset + 12),
 		}):Play()
 		local t = tweenService:Create(cardScale, TweenInfo.new(0.2, Enum.EasingStyle.Quart, Enum.EasingDirection.In), { Scale = 0.88 })
 		t:Play()
@@ -1308,6 +1317,7 @@ local function showDialog(options)
 
 	dialogHandle.Close = closeDialog
 	dialogHandle.Card = card
+	dialogHandle.Wrapper = cardWrapper
 	dialogHandle.Container = dialogContainer
 	dialogHandle.SetTitle = function(newTitle) titleLabel.Text = newTitle end
 	dialogHandle.SetDescription = function(newDesc)
@@ -1402,7 +1412,7 @@ local function showDialog(options)
 		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
 			dragging = true
 			dragStart = input.Position
-			startPos = card.Position
+			startPos = cardWrapper.Position
 			input.Changed:Connect(function()
 				if input.UserInputState == Enum.UserInputState.End then
 					dragging = false
@@ -1414,7 +1424,7 @@ local function showDialog(options)
 	userInputService.InputChanged:Connect(function(input)
 		if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
 			local delta = input.Position - dragStart
-			card.Position = UDim2.new(
+			cardWrapper.Position = UDim2.new(
 				startPos.X.Scale,
 				startPos.X.Offset + delta.X,
 				startPos.Y.Scale,
@@ -1427,16 +1437,15 @@ local function showDialog(options)
 		scrim.MouseButton1Click:Connect(closeDialog)
 	end
 
-	card.Parent = dialogContainer
+	cardWrapper.Parent = dialogContainer
 	dialogContainer.Parent = parentGui
 	table.insert(activeDialogs, dialogHandle)
 
 	if scrim then
 		tweenService:Create(scrim, TweenInfo.new(0.28, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), { BackgroundTransparency = 0.4 }):Play()
 	end
-	tweenService:Create(card, TweenInfo.new(0.32, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+	tweenService:Create(cardWrapper, TweenInfo.new(0.32, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
 		Position = UDim2.new(0.5, 0, 0.48, 0),
-		BackgroundTransparency = 0,
 	}):Play()
 	tweenService:Create(cardScale, TweenInfo.new(0.32, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = 1 }):Play()
 
