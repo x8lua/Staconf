@@ -982,27 +982,27 @@ local activeDialogs = {}
 
 local function getDialogGui()
 	if dialogGui and dialogGui.Parent then return dialogGui end
-	local targets = {}
-	pcall(function() table.insert(targets, coreGui) end)
-	if typeof(gethui) == "function" then
-		pcall(function() table.insert(targets, gethui()) end)
-	end
-	if localPlayer and localPlayer:FindFirstChild("PlayerGui") then
-		table.insert(targets, localPlayer.PlayerGui)
-	end
-	for _, target in ipairs(targets) do
-		local existing = target:FindFirstChild("StacOnfDialogs")
-		if existing then
-			dialogGui = existing
-			return dialogGui
+	local chosen = (app and app.__instance and app.__instance.Parent)
+	if not chosen or not chosen.Parent then
+		if typeof(gethui) == "function" then
+			pcall(function() chosen = gethui() end)
 		end
+	end
+	if not chosen then
+		chosen = coreGui
+	end
+	local existing = chosen:FindFirstChild("StacOnfDialogs")
+	if existing then
+		dialogGui = existing
+		return dialogGui
 	end
 	dialogGui = Instance.new("ScreenGui")
 	dialogGui.Name = "StacOnfDialogs"
 	dialogGui.DisplayOrder = 100000
 	dialogGui.ResetOnSpawn = false
 	dialogGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-	local chosen = targets[1] or coreGui
+	dialogGui.ScreenInsets = Enum.ScreenInsets.CoreUISafeInsets
+	dialogGui.ClipToDeviceSafeArea = true
 	dialogGui.Parent = chosen
 	return dialogGui
 end
