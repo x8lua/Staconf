@@ -850,41 +850,27 @@ window.Destroying:Connect(function()
 end)
 
 local function createTooltipManager(owner, parent)
-	local gui = Instance.new("ScreenGui")
-	gui.Name = "StacOnfTooltips"
-	gui.ResetOnSpawn = false
-	gui.DisplayOrder = 1005
-	gui.IgnoreGuiInset = true
-	gui.ScreenInsets = Enum.ScreenInsets.None
-	gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-	gui.Parent = parent
-
-	local displayScale = Instance.new("UIScale")
-	displayScale.Scale = 1
-	displayScale.Parent = gui
-
-	local glass = createNotificationGlass(gui, displayScale)
 	local alive = true
 
-	local card = Instance.new("CanvasGroup")
+	local card = Instance.new("Frame")
 	card.Name = "TooltipCard"
 	card.BackgroundColor3 = Color3.fromRGB(28, 30, 38)
-	card.BackgroundTransparency = 0.08
+	card.BackgroundTransparency = 1
 	card.BorderSizePixel = 0
-	card.GroupTransparency = 1
 	card.Visible = false
 	card.AnchorPoint = Vector2.new(0.5, 1)
 	card.AutomaticSize = Enum.AutomaticSize.XY
 	card.Size = UDim2.new(0, 0, 0, 0)
-	card.Parent = gui
+	card.ZIndex = 10000
+	card.Parent = owner
 
 	local corner = Instance.new("UICorner")
 	corner.CornerRadius = UDim.new(0, 8)
 	corner.Parent = card
 
 	local rim = Instance.new("UIStroke")
-	rim.Color = Color3.fromRGB(235, 242, 255)
-	rim.Transparency = 0.75
+	rim.Color = Color3.fromRGB(255, 255, 255)
+	rim.Transparency = 1
 	rim.Thickness = 1
 	rim.Parent = card
 
@@ -895,61 +881,61 @@ local function createTooltipManager(owner, parent)
 	pad.PaddingRight = UDim.new(0, 10)
 	pad.Parent = card
 
-	local limit = Instance.new("UISizeConstraint")
-	limit.MaxSize = Vector2.new(280, 200)
-	limit.MinSize = Vector2.new(30, 20)
-	limit.Parent = card
-
 	local label = Instance.new("TextLabel")
 	label.Name = "Content"
 	label.BackgroundTransparency = 1
-	label.FontFace = staconfFont(Enum.FontWeight.Medium)
+	label.Font = Enum.Font.GothamMedium
 	label.TextSize = 12
-	label.TextColor3 = Color3.fromRGB(244, 245, 249)
+	label.TextColor3 = Color3.fromRGB(255, 255, 255)
+	label.TextTransparency = 1
 	label.TextXAlignment = Enum.TextXAlignment.Center
 	label.TextYAlignment = Enum.TextYAlignment.Center
 	label.RichText = false
 	label.TextWrapped = false
 	label.AutomaticSize = Enum.AutomaticSize.XY
 	label.Size = UDim2.new(0, 0, 0, 0)
+	label.ZIndex = 10001
 	label.Parent = card
 
-	local glassItem = glass.Add(card)
-
 	local currentTarget = nil
-	local activeTween = nil
+	local activeTweens = {}
+
+	local function stopTweens()
+		for _, t in ipairs(activeTweens) do
+			t:Cancel()
+			t:Destroy()
+		end
+		table.clear(activeTweens)
+	end
 
 	local function styleTooltip()
 		local light = currentMode == "Light"
 		card.BackgroundColor3 = light and Color3.fromRGB(246, 248, 252) or Color3.fromRGB(28, 30, 38)
-		card.BackgroundTransparency = light and 0.08 or 0.04
-		rim.Color = light and Color3.fromRGB(200, 205, 218) or Color3.fromRGB(235, 242, 255)
-		label.TextColor3 = light and Color3.fromRGB(35, 38, 46) or Color3.fromRGB(244, 245, 249)
+		rim.Color = light and Color3.fromRGB(200, 205, 218) or Color3.fromRGB(255, 255, 255)
+		label.TextColor3 = light and Color3.fromRGB(35, 38, 46) or Color3.fromRGB(255, 255, 255)
 	end
 
 	local function hide()
 		currentTarget = nil
-		if activeTween then
-			activeTween:Cancel()
-			activeTween:Destroy()
-			activeTween = nil
-		end
-		if not card.Visible or card.GroupTransparency >= 0.99 then
+		stopTweens()
+		if not card.Visible or card.BackgroundTransparency >= 0.99 then
 			card.Visible = false
 			return
 		end
-		local tween = tweenService:Create(card, TweenInfo.new(0.18, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {
-			GroupTransparency = 1,
-		})
-		activeTween = tween
-		tween.Completed:Connect(function()
-			if activeTween == tween then
-				card.Visible = false
-				activeTween = nil
-			end
-			tween:Destroy()
+		local tInfo = TweenInfo.new(0.15, Enum.EasingStyle.Quart, Enum.EasingDirection.Out)
+		local t1 = tweenService:Create(card, tInfo, { BackgroundTransparency = 1 })
+		local t2 = tweenService:Create(rim, tInfo, { Transparency = 1 })
+		local t3 = tweenService:Create(label, tInfo, { TextTransparency = 1 })
+		table.insert(activeTweens, t1)
+		table.insert(activeTweens, t2)
+		table.insert(activeTweens, t3)
+		t1.Completed:Connect(function()
+			if card.BackgroundTransparency >= 0.99 then card.Visible = false end
+			stopTweens()
 		end)
-		tween:Play()
+		t1:Play()
+		t2:Play()
+		t3:Play()
 	end
 
 	local function show(targetGui, text)
@@ -958,40 +944,37 @@ local function createTooltipManager(owner, parent)
 		styleTooltip()
 		label.Text = text
 
-		local guiService = game:GetService("GuiService")
-		local inset = guiService:GetGuiInset()
+		local light = currentMode == "Light"
 		local targetPos = targetGui.AbsolutePosition
 		local targetSize = targetGui.AbsoluteSize
-		local screenWidth = gui.AbsoluteSize.X > 0 and gui.AbsoluteSize.X or 1920
+		local ownerPos = owner.AbsolutePosition
 
-		local centerX = targetPos.X + (targetSize.X / 2)
-		centerX = math.clamp(centerX, 140, screenWidth - 140)
-
-		local adjustedY = targetPos.Y + inset.Y
+		local relX = targetPos.X - ownerPos.X + (targetSize.X / 2)
 		local placeBelow = targetPos.Y < 300
-		local targetY = placeBelow and (adjustedY + targetSize.Y + 6) or (adjustedY - 6)
+		local targetY = placeBelow and (targetPos.Y - ownerPos.Y + targetSize.Y + 6) or (targetPos.Y - ownerPos.Y - 6)
 		local startYOffset = placeBelow and -4 or 4
 
 		card.AnchorPoint = Vector2.new(0.5, placeBelow and 0 or 1)
-		card.Position = UDim2.fromOffset(centerX, targetY + startYOffset)
-		card.GroupTransparency = 1
+		card.Position = UDim2.fromOffset(relX, targetY + startYOffset)
+		card.BackgroundTransparency = 1
+		rim.Transparency = 1
+		label.TextTransparency = 1
 		card.Visible = true
 
-		if activeTween then
-			activeTween:Cancel()
-			activeTween:Destroy()
-			activeTween = nil
-		end
-		local tween = tweenService:Create(card, TweenInfo.new(0.2, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {
-			Position = UDim2.fromOffset(centerX, targetY),
-			GroupTransparency = 0,
-		})
-		activeTween = tween
-		tween.Completed:Connect(function()
-			if activeTween == tween then activeTween = nil end
-			tween:Destroy()
-		end)
-		tween:Play()
+		stopTweens()
+		local tInfo = TweenInfo.new(0.2, Enum.EasingStyle.Quart, Enum.EasingDirection.Out)
+		local tPos = tweenService:Create(card, tInfo, { Position = UDim2.fromOffset(relX, targetY) })
+		local tBg = tweenService:Create(card, tInfo, { BackgroundTransparency = light and 0.08 or 0.05 })
+		local tRim = tweenService:Create(rim, tInfo, { Transparency = light and 0.82 or 0.8 })
+		local tTxt = tweenService:Create(label, tInfo, { TextTransparency = 0 })
+		table.insert(activeTweens, tPos)
+		table.insert(activeTweens, tBg)
+		table.insert(activeTweens, tRim)
+		table.insert(activeTweens, tTxt)
+		tPos:Play()
+		tBg:Play()
+		tRim:Play()
+		tTxt:Play()
 	end
 
 	local function attach(targetGui, tooltipText)
@@ -1027,14 +1010,10 @@ local function createTooltipManager(owner, parent)
 	local function cleanup()
 		if not alive then return end
 		alive = false
-		glass.Destroy()
 		hide()
+		pcall(function() card:Destroy() end)
 	end
-	owner.Destroying:Connect(function()
-		cleanup()
-		pcall(function() gui:Destroy() end)
-	end)
-	gui.Destroying:Connect(cleanup)
+	owner.Destroying:Connect(cleanup)
 
 	return {
 		Show = show,
@@ -1050,14 +1029,7 @@ app.Tooltip = tooltipManager
 window.Tooltip = tooltipManager
 local refreshTooltipTheme = tooltipManager.RefreshTheme
 onUnload(function()
-	local parent = app.__instance.Parent
-	local tooltips = parent and parent:FindFirstChild("StacOnfTooltips")
-	if tooltips then tooltips:Destroy() end
-end)
-window.Destroying:Connect(function()
-	local parent = app.__instance.Parent
-	local gui = parent and parent:FindFirstChild("StacOnfTooltips")
-	if gui then gui:Destroy() end
+	if tooltipManager then tooltipManager.Hide() end
 end)
 
 local oldBlur = lighting:FindFirstChild("StacOnfAcrylicBlur")
