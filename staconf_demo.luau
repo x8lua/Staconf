@@ -23,7 +23,7 @@ local function cleanupExisting()
 	end
 	for _, parent in ipairs(targets) do
 		for _, child in ipairs(parent:GetChildren()) do
-			if child.Name == "StacOnf" or child.Name == "Cascade" or child.Name == "StacOnfNotifications" or child.Name == "StacOnfDialogs" then
+			if child.Name == "StacOnf" or child.Name == "Cascade" or child.Name == "StacOnfNotifications" or child.Name == "StacOnfDialogs" or child.Name == "StacOnfTooltips" then
 				pcall(function()
 					child:Destroy()
 				end)
@@ -148,7 +148,9 @@ local function applyLocalFont(object)
 	end
 end
 
-local function titledRow(parent, title, subtitle)
+local tooltipManager = nil
+
+local function titledRow(parent, title, subtitle, info)
 	local row = parent:Row({
 		SearchIndex = title,
 	})
@@ -156,6 +158,56 @@ local function titledRow(parent, title, subtitle)
 		Title = title,
 		Subtitle = subtitle,
 	})
+	if info then
+		local infoText = typeof(info) == "string" and info or (subtitle and subtitle ~= "" and subtitle or ("Information for " .. title))
+		task.defer(function()
+			local rowInst = row.__instance
+			if not rowInst then return end
+			local leftAccessory = rowInst:FindFirstChild("LeftAccessory") or rowInst:FindFirstChildWhichIsA("Frame")
+			local stack = leftAccessory and leftAccessory:FindFirstChild("TitleStack")
+			local titleLabel = stack and stack:FindFirstChild("Title")
+			if titleLabel and not stack:FindFirstChild("TitleHeader") then
+				local header = Instance.new("Frame")
+				header.Name = "TitleHeader"
+				header.BackgroundTransparency = 1
+				header.AutomaticSize = Enum.AutomaticSize.XY
+				header.LayoutOrder = titleLabel.LayoutOrder
+
+				local layout = Instance.new("UIListLayout")
+				layout.FillDirection = Enum.FillDirection.Horizontal
+				layout.SortOrder = Enum.SortOrder.LayoutOrder
+				layout.VerticalAlignment = Enum.VerticalAlignment.Center
+				layout.Padding = UDim.new(0, 6)
+				layout.Parent = header
+
+				titleLabel.Parent = header
+
+				local infoBtn = Instance.new("ImageButton")
+				infoBtn.Name = "InfoIcon"
+				infoBtn.BackgroundTransparency = 1
+				infoBtn.Size = UDim2.fromOffset(14, 14)
+				infoBtn.LayoutOrder = 2
+				local infoAsset = getAsset("info.png", "https://raw.githubusercontent.com/x8lua/Staconf/main/assets/info.png")
+				infoBtn.Image = infoAsset or "rbxassetid://10723415903"
+				infoBtn.ImageColor3 = currentMode == "Light" and Color3.fromRGB(130, 135, 148) or Color3.fromRGB(160, 165, 180)
+				infoBtn.Parent = header
+
+				header.Parent = stack
+
+				infoBtn.MouseEnter:Connect(function()
+					local sel = app.Theme and app.Theme.Controls and app.Theme.Controls.Selection and app.Theme.Controls.Selection[1]
+					infoBtn.ImageColor3 = sel and sel.Value or Color3.fromRGB(59, 130, 246)
+				end)
+				infoBtn.MouseLeave:Connect(function()
+					infoBtn.ImageColor3 = currentMode == "Light" and Color3.fromRGB(130, 135, 148) or Color3.fromRGB(160, 165, 180)
+				end)
+
+				if tooltipManager then
+					tooltipManager.Attach(infoBtn, infoText)
+				end
+			end
+		end)
+	end
 	return row
 end
 
@@ -794,6 +846,230 @@ end)
 window.Destroying:Connect(function()
 	local parent = app.__instance.Parent
 	local gui = parent and parent:FindFirstChild("StacOnfNotifications")
+	if gui then gui:Destroy() end
+end)
+
+local function createTooltipManager(owner, parent)
+	local gui = Instance.new("ScreenGui")
+	gui.Name = "StacOnfTooltips"
+	gui.ResetOnSpawn = false
+	gui.DisplayOrder = 1005
+	gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+	gui.ScreenInsets = Enum.ScreenInsets.CoreUISafeInsets
+	gui.Parent = parent
+
+	local displayScale = Instance.new("UIScale")
+	displayScale.Scale = 1
+	displayScale.Parent = gui
+
+	local glass = createNotificationGlass(gui, displayScale)
+	local alive = true
+
+	local card = Instance.new("CanvasGroup")
+	card.Name = "TooltipCard"
+	card.BackgroundColor3 = Color3.fromRGB(34, 37, 47)
+	card.BackgroundTransparency = 0.22
+	card.BorderSizePixel = 0
+	card.GroupTransparency = 1
+	card.Visible = false
+	card.Size = UDim2.fromOffset(200, 36)
+	card.Parent = gui
+
+	local corner = Instance.new("UICorner")
+	corner.CornerRadius = UDim.new(0, 10)
+	corner.Parent = card
+
+	local rim = Instance.new("UIStroke")
+	rim.Color = Color3.fromRGB(235, 242, 255)
+	rim.Transparency = 0.72
+	rim.Thickness = 1
+	rim.Parent = card
+
+	local shadow = Instance.new("ImageLabel")
+	shadow.Name = "Shadow"
+	shadow.BackgroundTransparency = 1
+	shadow.Position = UDim2.new(0, -12, 0, -10)
+	shadow.Size = UDim2.new(1, 24, 1, 24)
+	shadow.Image = "rbxassetid://6015897843"
+	shadow.ImageColor3 = Color3.fromRGB(0, 0, 0)
+	shadow.ImageTransparency = 0.6
+	shadow.ScaleType = Enum.ScaleType.Slice
+	shadow.SliceCenter = Rect.new(49, 49, 450, 450)
+	shadow.ZIndex = -1
+	shadow.Parent = card
+
+	local label = Instance.new("TextLabel")
+	label.Name = "Content"
+	label.BackgroundTransparency = 1
+	label.FontFace = staconfFont(Enum.FontWeight.Medium)
+	label.TextSize = 13
+	label.TextColor3 = Color3.fromRGB(244, 245, 249)
+	label.TextXAlignment = Enum.TextXAlignment.Left
+	label.TextYAlignment = Enum.TextYAlignment.Center
+	label.RichText = false
+	label.TextWrapped = true
+	label.Position = UDim2.fromOffset(10, 7)
+	label.Size = UDim2.new(1, -20, 1, -14)
+	label.Parent = card
+
+	local glassItem = glass.Add(card)
+
+	local currentTarget = nil
+	local activeTween = nil
+
+	local function styleTooltip()
+		local light = currentMode == "Light"
+		card.BackgroundColor3 = light and Color3.fromRGB(242, 243, 247) or Color3.fromRGB(34, 37, 47)
+		card.BackgroundTransparency = glassItem and (light and 0.48 or 0.32) or (light and 0.18 or 0.22)
+		rim.Color = light and Color3.fromRGB(200, 204, 215) or Color3.fromRGB(235, 242, 255)
+		label.TextColor3 = light and Color3.fromRGB(37, 40, 48) or Color3.fromRGB(244, 245, 249)
+	end
+
+	local function hide()
+		currentTarget = nil
+		if activeTween then
+			activeTween:Cancel()
+			activeTween:Destroy()
+			activeTween = nil
+		end
+		if not card.Visible or card.GroupTransparency >= 0.99 then
+			card.Visible = false
+			return
+		end
+		local tween = tweenService:Create(card, TweenInfo.new(0.18, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {
+			GroupTransparency = 1,
+		})
+		activeTween = tween
+		tween.Completed:Connect(function()
+			if activeTween == tween then
+				card.Visible = false
+				activeTween = nil
+			end
+			tween:Destroy()
+		end)
+		tween:Play()
+	end
+
+	local function show(targetGui, text)
+		if not alive or not targetGui or not targetGui:IsDescendantOf(game) then return end
+		currentTarget = targetGui
+		styleTooltip()
+		label.Text = text
+
+		local maxTextWidth = 260
+		local ok, bounds = pcall(function()
+			local params = Instance.new("GetTextBoundsParams")
+			params.Text = text
+			params.Font = label.FontFace
+			params.Size = 13
+			params.Width = maxTextWidth
+			local res = textService:GetTextBoundsAsync(params)
+			params:Destroy()
+			return res
+		end)
+		local textWidth = ok and bounds.X or 180
+		local textHeight = ok and bounds.Y or 20
+		local cardWidth = math.clamp(textWidth + 24, 80, 284)
+		local cardHeight = math.clamp(textHeight + 16, 32, 160)
+
+		card.Size = UDim2.fromOffset(cardWidth, cardHeight)
+		label.Size = UDim2.new(1, -20, 1, -14)
+
+		local targetPos = targetGui.AbsolutePosition
+		local targetSize = targetGui.AbsoluteSize
+		local screenWidth = gui.AbsoluteSize.X > 0 and gui.AbsoluteSize.X or 1920
+
+		local posX = targetPos.X + (targetSize.X / 2) - (cardWidth / 2)
+		posX = math.clamp(posX, 12, screenWidth - cardWidth - 12)
+
+		local posY = targetPos.Y - cardHeight - 8
+		local startYOffset = 4
+		if posY < 12 then
+			posY = targetPos.Y + targetSize.Y + 8
+			startYOffset = -4
+		end
+
+		card.Position = UDim2.fromOffset(posX, posY + startYOffset)
+		card.GroupTransparency = 1
+		card.Visible = true
+
+		if activeTween then
+			activeTween:Cancel()
+			activeTween:Destroy()
+			activeTween = nil
+		end
+		local tween = tweenService:Create(card, TweenInfo.new(0.22, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {
+			Position = UDim2.fromOffset(posX, posY),
+			GroupTransparency = 0,
+		})
+		activeTween = tween
+		tween.Completed:Connect(function()
+			if activeTween == tween then activeTween = nil end
+			tween:Destroy()
+		end)
+		tween:Play()
+	end
+
+	local function attach(targetGui, tooltipText)
+		if not targetGui then return end
+		local hoverThread = nil
+		local isHovering = false
+
+		targetGui.MouseEnter:Connect(function()
+			isHovering = true
+			if hoverThread then
+				pcall(task.cancel, hoverThread)
+				hoverThread = nil
+			end
+			hoverThread = task.delay(0.5, function()
+				if isHovering and alive and targetGui:IsDescendantOf(game) then
+					show(targetGui, tooltipText)
+				end
+			end)
+		end)
+
+		targetGui.MouseLeave:Connect(function()
+			isHovering = false
+			if hoverThread then
+				pcall(task.cancel, hoverThread)
+				hoverThread = nil
+			end
+			if currentTarget == targetGui then
+				hide()
+			end
+		end)
+	end
+
+	local function cleanup()
+		alive = false
+		glass.Destroy()
+		hide()
+		gui:Destroy()
+	end
+	owner.Destroying:Connect(cleanup)
+	gui.Destroying:Connect(cleanup)
+
+	return {
+		Show = show,
+		Hide = hide,
+		Attach = attach,
+		RefreshTheme = styleTooltip,
+	}
+end
+
+tooltipManager = createTooltipManager(app.__instance, app.__instance.Parent)
+_G.StaconfTooltip = tooltipManager
+app.Tooltip = tooltipManager
+window.Tooltip = tooltipManager
+local refreshTooltipTheme = tooltipManager.RefreshTheme
+onUnload(function()
+	local parent = app.__instance.Parent
+	local tooltips = parent and parent:FindFirstChild("StacOnfTooltips")
+	if tooltips then tooltips:Destroy() end
+end)
+window.Destroying:Connect(function()
+	local parent = app.__instance.Parent
+	local gui = parent and parent:FindFirstChild("StacOnfTooltips")
 	if gui then gui:Destroy() end
 end)
 
@@ -2644,6 +2920,7 @@ local function smoothTransition(newMode, newAccentName)
 	end
 
 	refreshNotificationTheme()
+	if refreshTooltipTheme then refreshTooltipTheme() end
 	if refreshSidebarChrome then refreshSidebarChrome() end
 	if refreshSidebarSelection then refreshSidebarSelection() end
 	if refreshMiddlePanel then refreshMiddlePanel() end
@@ -2791,7 +3068,7 @@ do
 	local perfForm = perfSection:Form()
 
 	do
-		local row = titledRow(perfForm, "Field Of View", "Dynamically adjust camera projection angle")
+		local row = titledRow(perfForm, "Field Of View", "Dynamically adjust camera projection angle", "Dynamically adjust camera projection angle (60° - 120°)")
 		local currentFov = workspaceService.CurrentCamera and workspaceService.CurrentCamera.FieldOfView or 70
 		local fovLabel = row:Right():Label({
 			Text = tostring(math.floor(currentFov)) .. "°",
@@ -2811,7 +3088,7 @@ do
 	end
 
 	do
-		local row = titledRow(perfForm, "Low Latency Rendering", "Bypass redundant post-process sampling")
+		local row = titledRow(perfForm, "Low Latency Rendering", "Bypass redundant post-process sampling", "Bypass redundant post-process sampling to minimize frame presentation latency")
 		settingControl("lowLatency", row:Right(), "Toggle", {
 			Value = true,
 			ValueChanged = function(self, value)
@@ -2861,7 +3138,7 @@ do
 	end
 
 	do
-		local row = titledRow(diagForm, "Garbage Collector", "Trigger incremental GC cycle to free memory")
+		local row = titledRow(diagForm, "Garbage Collector", "Trigger incremental GC cycle to free memory", "Trigger incremental GC cycle to purge unreferenced memory allocations")
 		row:Right():Button({
 			Label = "Collect GC",
 			State = "Destructive",
@@ -2880,7 +3157,7 @@ do
 	end
 
 	do
-		local row = titledRow(diagForm, "Security Warning Dialog", "Show standalone macOS security alert dialog")
+		local row = titledRow(diagForm, "Security Warning Dialog", "Show standalone macOS security alert dialog", "Show standalone macOS security alert dialog with modal scrim backdrop")
 		row:Right():Button({
 			Label = "Show Alert...",
 			State = "Secondary",
