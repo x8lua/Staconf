@@ -32772,9 +32772,10 @@ local function addKeybind(sec, title, sub, keyName, defKey, onChange, info)
 end
 local function addButton(sec, label, onClick, state, info)
 	local row = titledRow(sec, label, nil, info)
+	local validState = (state == "Primary" or state == "Destructive") and state or "Secondary"
 	return row:Right():Button({
 		Label = label,
-		State = state or "Default",
+		State = validState,
 		Pushed = function()
 			if onClick then pcall(onClick) end
 		end,
