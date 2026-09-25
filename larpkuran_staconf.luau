@@ -29590,8 +29590,8 @@ if splashAsset and splashAsset ~= "" then
 	splashLogo.Image = splashAsset
 	splashLogo.BackgroundTransparency = 1
 	splashLogo.AnchorPoint = Vector2.new(0.5, 0.5)
-	splashLogo.Position = UDim2.new(0.5, 0, 0.44, -10)
-	splashLogo.Size = UDim2.fromOffset(300, 84)
+	splashLogo.Position = UDim2.new(0.5, 0, 0.42, -10)
+	splashLogo.Size = UDim2.fromOffset(480, 135)
 	splashLogo.ScaleType = Enum.ScaleType.Fit
 	splashLogo.Parent = bootOverlay
 else
@@ -29613,8 +29613,8 @@ end
 local progTrack = Instance.new("Frame")
 progTrack.Name = "ProgressTrack"
 progTrack.AnchorPoint = Vector2.new(0.5, 0.5)
-progTrack.Position = UDim2.new(0.5, 0, 0.44, 52)
-progTrack.Size = UDim2.fromOffset(210, 5)
+progTrack.Position = UDim2.new(0.5, 0, 0.42, 85)
+progTrack.Size = UDim2.fromOffset(260, 5)
 progTrack.BackgroundColor3 = Color3.fromRGB(48, 48, 52)
 progTrack.BorderSizePixel = 0
 progTrack.Visible = false
