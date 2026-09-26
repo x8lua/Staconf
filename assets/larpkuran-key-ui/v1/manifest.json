@@ -1,0 +1,118 @@
+{
+  "version": "v1",
+  "baseUrl": "https://raw.githubusercontent.com/x8lua/Staconf/main/assets/larpkuran-key-ui/v1/",
+  "files": [
+    {
+      "path": "default-pfp.png",
+      "bytes": 97766,
+      "width": 1440,
+      "height": 1440,
+      "sha256": "8ec0c23160c5835416f1854212058daaa8f178830c73d30c86e90c08140249be"
+    },
+    {
+      "path": "disk-beta.png",
+      "bytes": 47640,
+      "width": 240,
+      "height": 240,
+      "sha256": "b22af0ae1eda2b32cf61032b8865613ac2b132c6906d115c66c7a80352d1c3b0"
+    },
+    {
+      "path": "disk-production.png",
+      "bytes": 419832,
+      "width": 1000,
+      "height": 1000,
+      "sha256": "c9c914fb7d43c206a47a2cbd354e70e47ee27330c4d5325cd8ab58ad4d0bc9b5"
+    },
+    {
+      "path": "nav-next.png",
+      "bytes": 31518,
+      "width": 512,
+      "height": 512,
+      "sha256": "e30376467bb3522a7a7010617ab325b383ec8aa11f3652d5431a2e7401d79b19"
+    },
+    {
+      "path": "nav-previous.png",
+      "bytes": 31366,
+      "width": 512,
+      "height": 512,
+      "sha256": "fe2a8f99910242d62e491e75c643ecd60218deee11abec2c410cd914f54017a5"
+    },
+    {
+      "path": "tutorial/step-01.png",
+      "bytes": 1084,
+      "width": 95,
+      "height": 40,
+      "sha256": "75971eeea112f64a314e1882a002ff0b61b4ae4080cdba36ea34da8618e3a8ad"
+    },
+    {
+      "path": "tutorial/step-02.png",
+      "bytes": 6179,
+      "width": 405,
+      "height": 90,
+      "sha256": "d5ca495cfed3dd1f861410540ecb6459c0a2ae55be15e6c06cd8e85da195db11"
+    },
+    {
+      "path": "tutorial/step-03.png",
+      "bytes": 13807,
+      "width": 447,
+      "height": 184,
+      "sha256": "74236190322fb91b5c044b700a3e00e5e5057887e7e1b58184db58224c48aef5"
+    },
+    {
+      "path": "tutorial/step-04.png",
+      "bytes": 2639,
+      "width": 266,
+      "height": 49,
+      "sha256": "f3538cc44e0295617bc535c4024f793b72d3517f4bdff435e6097aa1a13697ad"
+    },
+    {
+      "path": "tutorial/step-05.png",
+      "bytes": 115408,
+      "width": 671,
+      "height": 251,
+      "sha256": "eca4bf9181214a33e0e5a8fac351dfe8a37bc64873720c4881074433fd2d6697"
+    },
+    {
+      "path": "tutorial/step-06.png",
+      "bytes": 22432,
+      "width": 530,
+      "height": 153,
+      "sha256": "618fec0cf5c59360ba39f78949dd0911d122538109c9b41162574f4b51b3ce34"
+    },
+    {
+      "path": "tutorial/step-07.png",
+      "bytes": 21534,
+      "width": 490,
+      "height": 238,
+      "sha256": "9ac84d0b8825afd9f1963f49505dde4940d7cefd5264dceb0132b040a0fc8a6d"
+    },
+    {
+      "path": "tutorial/step-08.png",
+      "bytes": 1172421,
+      "width": 1800,
+      "height": 874,
+      "sha256": "5e87c4f94ce0a6c204af4544ec9160c8d97cc90fc07784857819a51b65caf229"
+    },
+    {
+      "path": "tutorial/step-09.png",
+      "bytes": 1508616,
+      "width": 2048,
+      "height": 768,
+      "sha256": "9a17306073b25edbea6bc9dd9146c2becb3f01111f5852b7e3222d490118d4e1"
+    },
+    {
+      "path": "tutorial/step-10.png",
+      "bytes": 1183344,
+      "width": 1976,
+      "height": 796,
+      "sha256": "a37d0a131327e64f0291236283d3978e63465482e47de66887c221008ace1190"
+    },
+    {
+      "path": "tutorial/step-11.png",
+      "bytes": 1204726,
+      "width": 1881,
+      "height": 836,
+      "sha256": "7e6fb891fbce25e6e70b17377cd5121e9b50b3a2e551891ce17bfd71b3677761"
+    }
+  ]
+}
