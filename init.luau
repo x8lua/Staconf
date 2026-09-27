@@ -404,6 +404,13 @@ function Staconf:Dialog(options)
 end
 
 function Staconf:AddTab(options)
+    options = options or {}
+    if not options.Icon and self._chromeEnabled then
+        local name = tostring(options.Title or ""):lower()
+        local icons = {settings = "gearshape", combat = "shield", movement = "figure",
+            visuals = "squareGrid2x2", staff = "personCropCircle", prison = "house"}
+        options.Icon = self.Cascade.Symbols[icons[name] or "squareGrid2x2"]
+    end
     local tab = self.Window:Tab(options)
     if self._chromeEnabled then self:_styleSidebarItem(raw(tab.Structures.Body)) end
     return tab
