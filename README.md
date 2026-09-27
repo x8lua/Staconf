@@ -31,7 +31,7 @@ See [example.luau](example.luau) for a basic example and [komorebi.luau](komoreb
 
 - `Staconf.new(options)` creates a Cascade window. Options include `Title`, `Subtitle`, `Name`, `Theme` (`Dark` or `Light`), `Accent`, `Size`, `Boot`, `BootImage`, `BootSoundId`, `CacheRoot`, `AssetBaseUrl`, `Cascade`, and `CascadeUrl`. Standard Cascade window options such as `CanExit`, `CanMinimize`, `Resizable`, and `UIBlur` are available.
 - `ui.App`, `ui.Window`, and `ui.Cascade` expose Cascade objects for advanced use.
-- `ui:AddTab(options)` returns a Cascade tab. Use its `PageSection` and other Cascade methods to build content.
+- `ui:AddTab({Title, Icon, Selected})` returns a Cascade tab with Staconf sidebar styling. Pass a Roblox image asset for `Icon`; tabs without icons use a full-width text label. Use `PageSection` and other Cascade methods to build content.
 - `ui:ShowBoot()`, `ui:RevealBootProgress()`, `ui:SetBootProgress(fraction)`, and `ui:FinishBoot()` control the optional startup overlay. Progress is a number from `0` to `1`. Set `BootImage` or `BootImageFile` and `BootSoundId` to brand the startup screen.
 - `ui:Notify({Title, Subtitle, Duration})` shows a notification.
 - `ui:Dialog({Title, Description, Modal, Buttons})` shows a dialog. Each button accepts `Text`, `Style`, and `Callback`; the returned object has `Close()`.

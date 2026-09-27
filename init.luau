@@ -362,7 +362,9 @@ function Staconf:Dialog(options)
 end
 
 function Staconf:AddTab(options)
-    return self.Window:Tab(options)
+    local tab = self.Window:Tab(options)
+    if self._chromeEnabled then self:_styleSidebarItem(raw(tab.Structures.Body)) end
+    return tab
 end
 
 function Staconf:SetVisible(visible)
@@ -379,7 +381,9 @@ function Staconf:SetTheme(mode, accent)
     end
     if accent and self.Cascade.Accents[accent] then
         self.App.Accent = self.Cascade.Accents[accent]
+        self._accentName = accent
     end
+    self._accentColor = self.Cascade.Accents[self._accentName][self.Mode].Selection
     if self._chromeEnabled then self:_applyChrome() end
 end
 
@@ -395,20 +399,84 @@ function Staconf:Destroy()
 end
 
 function Staconf:_applyChrome()
-    local body = raw(self.Window.Structures.Body)
+    local structures = self.Window.Structures
+    local body = raw(structures.Body)
     if not body then return end
     local bodyCorner = body:FindFirstChildOfClass("UICorner")
     if bodyCorner then bodyCorner.CornerRadius = UDim.new(0, 22) end
-    local sidebar = raw(self.Window.Structures.Sidebar)
-    local content = raw(self.Window.Structures.ContentBody)
-    for _, panel in ipairs({sidebar, content}) do
-        if panel and panel:IsA("GuiObject") then
-            panel.BorderSizePixel = 0
-            panel.BackgroundColor3 = self.Mode == "Light" and Color3.fromRGB(246, 247, 250)
-                or Color3.fromRGB(20, 22, 30)
-            panel.BackgroundTransparency = 0.12
+    local light = self.Mode == "Light"
+    local sidebar = raw(structures.SidebarMargins)
+    local content = raw(structures.ContentBody)
+    if sidebar then
+        sidebar.BackgroundColor3 = light and Color3.fromRGB(239, 241, 246) or Color3.fromRGB(20, 22, 31)
+        sidebar.BackgroundTransparency = 0.08
+    end
+    if content then
+        content.BackgroundColor3 = light and Color3.fromRGB(250, 251, 253) or Color3.fromRGB(27, 28, 32)
+        content.BackgroundTransparency = 0.03
+        local corner = content:FindFirstChildOfClass("UICorner")
+        if corner then corner.CornerRadius = UDim.new(0, 0) end
+    end
+    local separator = raw(structures.Separator)
+    if separator then separator.Visible = false end
+    local inner = raw(structures.Sidebar)
+    if inner then
+        local shadow = inner:FindFirstChild("Shadow", true)
+        if shadow then shadow.Visible = false end
+    end
+    local list = raw(structures.SidebarList)
+    if list then
+        local layout = list:FindFirstChildOfClass("UIListLayout")
+        if layout then layout.Padding = UDim.new(0, 5) end
+        for _, item in ipairs(list:GetChildren()) do
+            self:_styleSidebarItem(item)
         end
     end
+end
+
+function Staconf:_styleSidebarItem(item)
+    if not item or item.Name ~= "SidebarItem" or not item:IsA("GuiObject") then return end
+    item.Size = UDim2.new(1, 0, 0, UserInputService.TouchEnabled and 44 or 34)
+    local corner = item:FindFirstChildOfClass("UICorner")
+    if corner then corner.CornerRadius = UDim.new(0, 8) end
+    local leading = item:FindFirstChild("Leading")
+    local title = leading and leading:FindFirstChild("Title")
+    if title then
+        title.FontFace = Font.new("rbxassetid://12187365364", Enum.FontWeight.Medium)
+        title.TextSize = 14
+        title.Size = UDim2.new(1, -8, 0, 24)
+    end
+    if leading then
+        leading.Size = UDim2.new(1, 0, 0, 24)
+        leading.AutomaticSize = Enum.AutomaticSize.None
+        local layout = leading:FindFirstChildOfClass("UIListLayout")
+        if layout then layout.Padding = UDim.new(0, 8) end
+    end
+    local trailing = item:FindFirstChild("Trailing")
+    if trailing then trailing.Visible = false end
+    local symbol = leading and leading:FindFirstChild("Symbol")
+    if symbol and symbol.Visible then
+        symbol.Size = UDim2.fromOffset(20, 20)
+        symbol.ScaleType = Enum.ScaleType.Fit
+    end
+    local function refresh()
+        if not item.Parent then return end
+        local selected = item.BackgroundTransparency < 0.5
+        local light = self.Mode == "Light"
+        item.BackgroundColor3 = selected and
+            (light and Color3.fromRGB(218, 225, 238) or self._accentColor) or
+            (light and Color3.fromRGB(239, 241, 246) or Color3.fromRGB(20, 22, 31))
+        if title then
+            title.TextColor3 = selected and (light and Color3.fromRGB(27, 31, 40) or Color3.new(1, 1, 1))
+                or (light and Color3.fromRGB(75, 80, 94) or Color3.fromRGB(220, 223, 233))
+        end
+        if symbol and symbol.Visible then symbol.ImageColor3 = selected and Color3.new(1, 1, 1) or self._accentColor end
+    end
+    if not item:GetAttribute("StaconfStyled") then
+        item:SetAttribute("StaconfStyled", true)
+        item:GetPropertyChangedSignal("BackgroundTransparency"):Connect(refresh)
+    end
+    refresh()
 end
 
 function Staconf:Row(section, options)
@@ -489,6 +557,8 @@ function Staconf.new(options)
     self._dialogs = {}
     self._onDestroy = options.OnDestroy
     local accent = cascade.Accents[options.Accent] and options.Accent or "Blue"
+    self._accentName = accent
+    self._accentColor = cascade.Accents[accent][self.Mode].Selection
     self.App = cascade.New({WindowPill = options.WindowPill ~= false,
         Theme = cascade.Themes[self.Mode], Accent = cascade.Accents[accent]})
     self.App.__instance.Name = self.Name
