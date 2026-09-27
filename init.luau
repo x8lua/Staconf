@@ -769,9 +769,12 @@ function Staconf:_styleVisual(object)
     elseif object.Name == "Disclosure" or object.Name == "SectionHeader" then
         if object:IsA("GuiObject") then object.Visible = false end
     elseif object.Name == "Toggle" and object:IsA("Frame") then
-        object.Size = UDim2.fromOffset(38, 22)
-        local switch = object:FindFirstChild("Switch")
-        if switch and switch:IsA("GuiObject") then switch.Size = UDim2.fromOffset(38, 22) end
+        self:_styleToggle(object)
+    elseif object.Name == "Switch" and object.Parent and object.Parent.Name == "Toggle" then
+        self:_styleToggle(object.Parent)
+    elseif object.Name == "Knob" and object.Parent and object.Parent.Name == "Switch" then
+        local toggle = object.Parent.Parent
+        if toggle and toggle.Name == "Toggle" then self:_styleToggle(toggle) end
     elseif object.Name == "Slider" and object:IsA("ImageLabel") then
         object.Size = UDim2.fromOffset(150, 7)
         local corner = object:FindFirstChildOfClass("UICorner")
@@ -782,6 +785,59 @@ function Staconf:_styleVisual(object)
     elseif object.Name == "Separator" and object:IsA("GuiObject") then
         object.Visible = false
     end
+end
+
+function Staconf:_styleToggle(toggle)
+    local switch = toggle:FindFirstChild("Switch")
+    local knob = switch and switch:FindFirstChild("Knob")
+    if not (switch and switch:IsA("ImageButton") and knob and knob:IsA("ImageLabel")) then return end
+    toggle.Size = UDim2.fromOffset(38, 22)
+    switch.Size = UDim2.fromOffset(38, 22)
+    switch.ImageTransparency = 1
+    switch.BackgroundTransparency = 0
+    local switchCorner = switch:FindFirstChild("StaconfTrackCorner") or Instance.new("UICorner")
+    switchCorner.Name = "StaconfTrackCorner"
+    switchCorner.CornerRadius = UDim.new(0, 11)
+    switchCorner.Parent = switch
+    local gradient = switch:FindFirstChildOfClass("UIGradient")
+    if gradient then pcall(function() gradient.Enabled = false end) end
+    knob.Size = UDim2.fromOffset(20, 18)
+    knob.AnchorPoint = Vector2.new(0, 0.5)
+    knob.BackgroundColor3 = Color3.new(1, 1, 1)
+    knob.BackgroundTransparency = 0
+    knob.ImageTransparency = 1
+    local corner = knob:FindFirstChildOfClass("UICorner") or Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, 9)
+    corner.Parent = knob
+    local stroke = knob:FindFirstChildOfClass("UIStroke") or Instance.new("UIStroke")
+    stroke.Thickness = 1
+    stroke.Color = Color3.new(0, 0, 0)
+    stroke.Transparency = 0.88
+    stroke.Parent = knob
+    local effects = knob:FindFirstChild("Effects")
+    if effects then effects.Visible = false end
+    if knob:GetAttribute("StaconfMotion") then return end
+    knob:SetAttribute("StaconfMotion", true)
+    local visual = knob:Clone()
+    visual.Name = "AnimatedKnob"
+    visual.Visible = true
+    visual.Parent = switch
+    local visualEffects = visual:FindFirstChild("Effects")
+    if visualEffects then visualEffects:Destroy() end
+    knob.Visible = false
+    local function updatePosition()
+        if not visual.Parent then return end
+        local progress = math.clamp((knob.Position.X.Offset - 1) / 12, 0, 1)
+        visual.Position = UDim2.new(0, 2 + 14 * progress, 0.5, 0)
+        local enabled = progress >= 0.5
+        local offColor = self.Mode == "Light" and Color3.fromRGB(220, 222, 228) or Color3.fromRGB(60, 62, 70)
+        local onColor = Color3.fromRGB(0, 122, 255)
+        TweenService:Create(switch, TweenInfo.new(0.18, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {
+            BackgroundColor3 = enabled and onColor or offColor,
+        }):Play()
+    end
+    self:_connect(knob:GetPropertyChangedSignal("Position"), updatePosition)
+    updatePosition()
 end
 
 function Staconf:_installVerticalScroll()
