@@ -35,6 +35,10 @@ See [example.luau](example.luau) for a complete example.
 - `ui:ShowBoot()`, `ui:RevealBootProgress()`, `ui:SetBootProgress(fraction)`, and `ui:FinishBoot()` control the optional startup overlay. Progress is a number from `0` to `1`. Set `BootImage` or `BootImageFile` and `BootSoundId` to brand the startup screen.
 - `ui:Notify({Title, Subtitle, Duration})` shows a notification.
 - `ui:Dialog({Title, Description, Modal, Buttons})` shows a dialog. Each button accepts `Text`, `Style`, and `Callback`; the returned object has `Close()`.
+- `ui:InstallChrome({Tooltips = {[instance] = "..."}})` applies the Cascade sidebar, typography, mobile sizing, and late-created tab styling. `ui:LoadFontFamily()` and `ui:ApplyFont()` load the bundled font family when executor asset APIs are available.
+- `ui:Tooltip(instance, text)` and `ui:AttachTooltips(entries)` add delayed hover cards that are cleaned up with the UI instance.
+- `ui:CreateSubTabs(parent, {Items, Selected, OnSelected})` creates a responsive segmented sub-tab strip. `ui:CreateGlass(instance, options)` applies the portable rounded glass fallback, and `ui:AddTabIntroduction(tab, options)` adds a themed tab header card.
+- `ui:BuildUpdateTab({Check, Apply, Version})` renders a neutral `Client Update / Unavailable` page while retaining those callbacks in `ui._updateMechanic` for the host application.
 - `ui:Toggle`, `ui:Slider`, `ui:Dropdown`, `ui:TextField`, `ui:Keybind`, and `ui:Button` add controls to a Cascade Form. Each accepts a section and options table, returning the control and row. Use `OnChange` for value controls and `OnClick` for buttons.
 - `ui:SetVisible(boolean)` hides or shows the window immediately, including blur. `ui:SetTheme(mode, accent)` updates Cascade colors. `ui:Destroy()` releases UI owned by the instance.
 - `ui:Asset(fileName)` loads a repository asset through the executor's local asset APIs when available. Set `AssetBaseUrl` and `CacheRoot` to use your own assets.

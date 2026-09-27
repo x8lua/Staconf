@@ -54,6 +54,48 @@ function Staconf:Asset(fileName)
     return ok and asset or url
 end
 
+function Staconf:_connect(signal, callback)
+    local connection = signal:Connect(callback)
+    table.insert(self._connections, connection)
+    return connection
+end
+
+function Staconf:_applyFont(object)
+    if not self._fontFamily or not object then return end
+    if object:IsA("TextLabel") or object:IsA("TextButton") or object:IsA("TextBox") then
+        local face = object.FontFace
+        object.FontFace = Font.new(self._fontFamily, face.Weight, face.Style)
+    end
+end
+
+function Staconf:LoadFontFamily(files)
+    files = files or {"regular.otf", "medium.otf", "bold.otf"}
+    if type(getcustomasset) ~= "function" or type(writefile) ~= "function" then return false end
+    local folder = self.CacheRoot .. "/fonts"
+    pcall(makefolder, self.CacheRoot)
+    pcall(makefolder, folder)
+    for _, fileName in ipairs(files) do
+        local path = folder .. "/" .. fileName
+        if type(isfile) ~= "function" or not isfile(path) then
+            local ok, data = pcall(function() return game:HttpGetAsync(self.AssetBaseUrl .. "fonts/" .. fileName) end)
+            if ok and type(data) == "string" and #data > 0 then pcall(writefile, path, data) end
+        end
+    end
+    local ok, family = pcall(function()
+        local regular = folder .. "/regular.otf"
+        assert(type(isfile) == "function" and isfile(regular), "regular font unavailable")
+        return getcustomasset(regular)
+    end)
+    if ok then self._fontFamily = family end
+    return ok
+end
+
+function Staconf:ApplyFont(root)
+    root = root or self.App.__instance
+    self:_applyFont(root)
+    for _, object in ipairs(root:GetDescendants()) do self:_applyFont(object) end
+end
+
 function Staconf:ShowBoot()
     if self._destroyed then return nil end
     if self._boot then return self._boot end
@@ -393,9 +435,72 @@ function Staconf:Destroy()
     if self._bootSound then self._bootSound:Destroy() end
     if self._boot and self._boot.Overlay.Parent then self._boot.Overlay:Destroy() end
     if self._noticeGui then self._noticeGui:Destroy() end
+    if self._tooltipGui then self._tooltipGui:Destroy() end
+    for _, connection in ipairs(self._connections or {}) do connection:Disconnect() end
+    table.clear(self._connections or {})
     for _, dialog in ipairs(self._dialogs) do if dialog.Parent then dialog:Destroy() end end
     if self.App.__instance.Parent then self.App.__instance:Destroy() end
     if self._onDestroy then pcall(self._onDestroy, self) end
+end
+
+function Staconf:Tooltip(target, text)
+    if not target or self._destroyed then return end
+    if not self._tooltipGui or not self._tooltipGui.Parent then
+        local gui = Instance.new("ScreenGui")
+        gui.Name = self.Name .. "Tooltips"
+        gui.ResetOnSpawn = false
+        gui.DisplayOrder = 20000
+        gui.ScreenInsets = Enum.ScreenInsets.CoreUISafeInsets
+        gui.Parent = self.App.__instance.Parent
+        local card = Instance.new("Frame")
+        card.Name = "TooltipCard"
+        card.AutomaticSize = Enum.AutomaticSize.XY
+        card.Visible = false
+        card.AnchorPoint = Vector2.new(0.5, 1)
+        card.BackgroundColor3 = Color3.fromRGB(28, 30, 38)
+        card.BackgroundTransparency = 0.05
+        card.BorderSizePixel = 0
+        card.ZIndex = 20000
+        card.Parent = gui
+        round(card, 8)
+        local padding = Instance.new("UIPadding")
+        padding.PaddingTop = UDim.new(0, 6); padding.PaddingBottom = UDim.new(0, 6)
+        padding.PaddingLeft = UDim.new(0, 10); padding.PaddingRight = UDim.new(0, 10)
+        padding.Parent = card
+        local label = Instance.new("TextLabel")
+        label.Name = "Content"
+        label.AutomaticSize = Enum.AutomaticSize.XY
+        label.BackgroundTransparency = 1
+        label.Font = Enum.Font.GothamMedium
+        label.TextSize = 12
+        label.TextColor3 = Color3.new(1, 1, 1)
+        label.TextWrapped = true
+        label.Text = ""
+        label.Parent = card
+        self._tooltipGui, self._tooltipCard, self._tooltipLabel = gui, card, label
+    end
+    local card, label = self._tooltipCard, self._tooltipLabel
+    local hoverThread
+    local function hide()
+        if hoverThread then pcall(task.cancel, hoverThread); hoverThread = nil end
+        if card then card.Visible = false end
+    end
+    self:_connect(target.MouseEnter, function()
+        if hoverThread then pcall(task.cancel, hoverThread) end
+        hoverThread = task.delay(0.45, function()
+            if self._destroyed or not target:IsDescendantOf(game) then return end
+            label.Text = tostring(text or "")
+            local p, s = target.AbsolutePosition, target.AbsoluteSize
+            local owner = self.App.__instance.AbsolutePosition
+            card.Position = UDim2.fromOffset(p.X - owner.X + s.X / 2, p.Y - owner.Y - 6)
+            card.Visible = true
+        end)
+    end)
+    self:_connect(target.MouseLeave, hide)
+end
+
+function Staconf:AttachTooltips(entries)
+    for target, text in pairs(entries or {}) do self:Tooltip(target, text) end
 end
 
 function Staconf:_applyChrome()
@@ -459,6 +564,19 @@ function Staconf:_styleSidebarItem(item)
         symbol.Size = UDim2.fromOffset(20, 20)
         symbol.ScaleType = Enum.ScaleType.Fit
     end
+    if symbol and symbol.Visible and not leading:FindFirstChild("BadgeBackground") then
+        local badge = Instance.new("Frame")
+        badge.Name = "BadgeBackground"
+        badge.Size = UDim2.fromOffset(22, 22)
+        badge.LayoutOrder = 1
+        badge.BorderSizePixel = 0
+        badge.BackgroundColor3 = self._accentColor
+        badge.Parent = leading
+        round(badge, 6)
+        symbol.Parent = badge
+        symbol.AnchorPoint = Vector2.new(0.5, 0.5)
+        symbol.Position = UDim2.fromScale(0.5, 0.5)
+    end
     local function refresh()
         if not item.Parent then return end
         local selected = item.BackgroundTransparency < 0.5
@@ -477,6 +595,158 @@ function Staconf:_styleSidebarItem(item)
         item:GetPropertyChangedSignal("BackgroundTransparency"):Connect(refresh)
     end
     refresh()
+end
+
+function Staconf:InstallChrome(options)
+    options = options or {}
+    if self._destroyed then return end
+    self._chromeOptions = options
+    self._applyChrome()
+    self:ApplyFont()
+    local root = self.App.__instance
+    for _, object in ipairs(root:GetDescendants()) do
+        if object.Name == "SidebarItem" then self:_styleSidebarItem(object) end
+    end
+    self:_connect(root.DescendantAdded, function(object)
+        if object.Name == "SidebarItem" then task.defer(function() self:_styleSidebarItem(object) end) end
+        self:_applyFont(object)
+    end)
+    if options.Tooltips then self:AttachTooltips(options.Tooltips) end
+    return self
+end
+
+-- Creates a reusable Cascade-style segmented sub-tab strip. Content and state
+-- remain owned by the caller; this helper only manages selection visuals.
+function Staconf:CreateSubTabs(parent, options)
+    options = options or {}
+    if self._destroyed then return nil end
+    local host = raw(parent) or parent
+    if not host or not host:IsA("GuiObject") then return nil end
+    local root = Instance.new("Frame")
+    root.Name = options.Name or "SubTabs"
+    root.Size = options.Size or UDim2.new(1, 0, 0, UserInputService.TouchEnabled and 42 or 36)
+    root.BackgroundTransparency = 1
+    root.Parent = host
+    local padding = Instance.new("UIPadding")
+    padding.PaddingLeft = UDim.new(0, options.Padding or 2)
+    padding.PaddingRight = UDim.new(0, options.Padding or 2)
+    padding.Parent = root
+    local layout = Instance.new("UIListLayout")
+    layout.FillDirection = Enum.FillDirection.Horizontal
+    layout.VerticalAlignment = Enum.VerticalAlignment.Center
+    layout.Padding = UDim.new(0, 6)
+    layout.Parent = root
+    local entries = {}
+    local selected = options.Selected or 1
+    local accent = self._accentColor
+    local function paint(index)
+        selected = index
+        for i, entry in ipairs(entries) do
+            local active = i == selected
+            entry.Button.BackgroundColor3 = active and accent or
+                (self.Mode == "Light" and Color3.fromRGB(235, 238, 244) or Color3.fromRGB(37, 40, 50))
+            entry.Button.TextColor3 = active and Color3.new(1, 1, 1) or
+                (self.Mode == "Light" and Color3.fromRGB(77, 82, 96) or Color3.fromRGB(205, 209, 220))
+        end
+        if options.OnSelected then options.OnSelected(selected, entries[selected] and entries[selected].Value) end
+    end
+    for index, value in ipairs(options.Items or {}) do
+        local item = type(value) == "table" and value or {Title = tostring(value), Value = value}
+        local button = Instance.new("TextButton")
+        button.Name = "SubTab"
+        button.LayoutOrder = index
+        button.Size = UDim2.new(0, item.Width or 112, 1, 0)
+        button.AutoButtonColor = false
+        button.BorderSizePixel = 0
+        button.Font = Enum.Font.GothamMedium
+        button.TextSize = UserInputService.TouchEnabled and 12 or 13
+        button.Text = tostring(item.Title or item.Label or item.Value or index)
+        button.Parent = root
+        round(button, 9)
+        local entry = {Button = button, Value = item.Value or item.Title}
+        table.insert(entries, entry)
+        self:_connect(button.Activated, function()
+            paint(index)
+            if item.OnSelected then item.OnSelected(entry.Value, index) end
+        end)
+    end
+    paint(math.clamp(selected, 1, math.max(1, #entries)))
+    return {
+        Root = root,
+        Items = entries,
+        Select = function(_, index) if entries[index] then paint(index) end end,
+        Destroy = function() if root.Parent then root:Destroy() end end,
+    }
+end
+
+-- Applies the shared liquid-glass fallback without requiring EditableMesh or
+-- a private renderer. Callers can replace this with their own renderer later.
+function Staconf:CreateGlass(target, options)
+    options = options or {}
+    local object = raw(target) or target
+    if not object or not object:IsA("GuiObject") then return nil end
+    local corner = object:FindFirstChild("StaconfGlassCorner") or Instance.new("UICorner")
+    corner.Name = "StaconfGlassCorner"
+    corner.CornerRadius = UDim.new(0, options.Radius or 18)
+    corner.Parent = object
+    local stroke = object:FindFirstChild("StaconfGlassStroke") or Instance.new("UIStroke")
+    stroke.Name = "StaconfGlassStroke"
+    stroke.Color = options.StrokeColor or Color3.fromRGB(255, 255, 255)
+    stroke.Transparency = options.StrokeTransparency or 0.78
+    stroke.Thickness = options.StrokeThickness or 1
+    stroke.Parent = object
+    if options.Color then object.BackgroundColor3 = options.Color end
+    if options.Transparency ~= nil then object.BackgroundTransparency = options.Transparency end
+    return {Object = object, Corner = corner, Stroke = stroke}
+end
+
+function Staconf:AddTabIntroduction(tab, options)
+    options = options or {}
+    local body = raw(tab and tab.Structures and tab.Structures.Body)
+    if not body then return nil end
+    local card = Instance.new("Frame")
+    card.Name = options.Name or "TabIntroduction"
+    card.Size = UDim2.new(1, 0, 0, options.Height or 86)
+    card.BackgroundColor3 = self.Mode == "Light" and Color3.fromRGB(239, 242, 247) or Color3.fromRGB(31, 34, 44)
+    card.BorderSizePixel = 0
+    card.LayoutOrder = options.LayoutOrder or -100
+    card.Parent = body
+    self:CreateGlass(card, {Radius = 16, StrokeTransparency = 0.86})
+    local title = Instance.new("TextLabel")
+    title.BackgroundTransparency = 1
+    title.Position = UDim2.fromOffset(18, 13)
+    title.Size = UDim2.new(1, -36, 0, 24)
+    title.Font = Enum.Font.GothamBold
+    title.TextSize = 16
+    title.TextXAlignment = Enum.TextXAlignment.Left
+    title.TextColor3 = self.Mode == "Light" and Color3.fromRGB(28, 31, 40) or Color3.fromRGB(245, 247, 252)
+    title.Text = tostring(options.Title or self.Title)
+    title.Parent = card
+    local description = Instance.new("TextLabel")
+    description.BackgroundTransparency = 1
+    description.Position = UDim2.fromOffset(18, 40)
+    description.Size = UDim2.new(1, -36, 0, 32)
+    description.Font = Enum.Font.Gotham
+    description.TextSize = 13
+    description.TextWrapped = true
+    description.TextXAlignment = Enum.TextXAlignment.Left
+    description.TextColor3 = self.Mode == "Light" and Color3.fromRGB(83, 88, 101) or Color3.fromRGB(190, 195, 208)
+    description.Text = tostring(options.Description or "")
+    description.Parent = card
+    return card
+end
+
+-- Keeps update callbacks available to the host while intentionally exposing a
+-- neutral unavailable page in the general-purpose library.
+function Staconf:BuildUpdateTab(options)
+    options = options or {}
+    self._updateMechanic = {Check = options.Check, Apply = options.Apply, Version = options.Version}
+    local tab = self:AddTab({Title = options.Title or "Client Update", Icon = options.Icon, Selected = options.Selected})
+    local section = tab:PageSection({Title = options.SectionTitle or "Updates"}):Form()
+    local row = self:Row(section, {Title = "Client Update"})
+    row:Left():TitleStack({Title = "Client Update", Subtitle = "Unavailable"})
+    row:Right():Button({Label = "Unavailable", State = "Secondary"})
+    return tab
 end
 
 function Staconf:Row(section, options)
@@ -554,6 +824,7 @@ function Staconf.new(options)
     self.BootSoundId = options.BootSoundId
     self.BootSoundVolume = options.BootSoundVolume or 1
     self.ProgressColor = options.ProgressColor or Color3.fromRGB(245, 245, 247)
+    self._connections = {}
     self._dialogs = {}
     self._onDestroy = options.OnDestroy
     local accent = cascade.Accents[options.Accent] and options.Accent or "Blue"
@@ -574,7 +845,7 @@ function Staconf.new(options)
         Dropshadow = options.Dropshadow ~= false, UIBlur = options.UIBlur ~= false})
     self._blurWanted = options.UIBlur ~= false
     self._chromeEnabled = options.Chrome ~= false
-    if self._chromeEnabled then self:_applyChrome() end
+    if self._chromeEnabled then self:InstallChrome(options.ChromeOptions or {}) end
     self.App.__instance.Destroying:Connect(function()
         if not self._destroyed then
             self._destroyed = true
