@@ -611,13 +611,160 @@ function Staconf:InstallChrome(options)
     local root = self.App.__instance
     for _, object in ipairs(root:GetDescendants()) do
         if object.Name == "SidebarItem" then self:_styleSidebarItem(object) end
+        self:_styleVisual(object)
     end
     self:_connect(root.DescendantAdded, function(object)
         if object.Name == "SidebarItem" then task.defer(function() self:_styleSidebarItem(object) end) end
         self:_applyFont(object)
+        task.defer(function() if object.Parent and not self._destroyed then self:_styleVisual(object) end end)
     end)
+    self:_installVerticalScroll()
     if options.Tooltips then self:AttachTooltips(options.Tooltips) end
     return self
+end
+
+function Staconf:_styleVisual(object)
+    if not object or not object.Parent then return end
+    if object:IsA("UICorner") then
+        local name = object.Parent.Name
+        if name == "Body" then object.CornerRadius = UDim.new(0, 22)
+        elseif name == "ContentBody" or name == "Toolbar" or name == "Sidebar" then
+            object.CornerRadius = UDim.new(0, 0)
+        elseif name == "SidebarItem" then object.CornerRadius = UDim.new(0, 8) end
+    elseif object:IsA("ScrollingFrame") and
+        (object.Name == "ContentList" or object.Name == "SidebarList" or object.Name == "SidebarSearchResults") then
+        object.ScrollingDirection = Enum.ScrollingDirection.Y
+    elseif object.Name == "Disclosure" or object.Name == "SectionHeader" then
+        if object:IsA("GuiObject") then object.Visible = false end
+    elseif object.Name == "Toggle" and object:IsA("Frame") then
+        object.Size = UDim2.fromOffset(38, 22)
+        local switch = object:FindFirstChild("Switch")
+        if switch and switch:IsA("GuiObject") then switch.Size = UDim2.fromOffset(38, 22) end
+    elseif object.Name == "Slider" and object:IsA("ImageLabel") then
+        object.Size = UDim2.fromOffset(150, 7)
+        local corner = object:FindFirstChildOfClass("UICorner")
+        if corner then corner.CornerRadius = UDim.new(0, 4) end
+    elseif object.Name == "Toolbar" and object:IsA("Frame") then
+        local shadow = object:FindFirstChild("Shadow")
+        if shadow then shadow.Visible = false end
+    elseif object.Name == "Separator" and object:IsA("GuiObject") then
+        object.Visible = false
+    end
+end
+
+function Staconf:_installVerticalScroll()
+    if self._scrollInstalled then return end
+    self._scrollInstalled = true
+    self:_connect(UserInputService.InputChanged, function(input)
+        if self._destroyed or not self.App.__instance.Enabled or input.UserInputType ~= Enum.UserInputType.MouseWheel then return end
+        if not (UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) or UserInputService:IsKeyDown(Enum.KeyCode.RightShift)) then return end
+        local cursor = UserInputService:GetMouseLocation()
+        local best, area = nil, math.huge
+        for _, object in ipairs(self.App.__instance:GetDescendants()) do
+            if object:IsA("ScrollingFrame") and object.ScrollingEnabled and object.Visible and
+                (object.Name == "ContentList" or object.Name == "SidebarList" or object.Name == "SidebarSearchResults") then
+                local p, s = object.AbsolutePosition, object.AbsoluteSize
+                if cursor.X >= p.X and cursor.X <= p.X + s.X and cursor.Y >= p.Y and cursor.Y <= p.Y + s.Y then
+                    local size = s.X * s.Y
+                    if size < area then best, area = object, size end
+                end
+            end
+        end
+        if not best then return end
+        local before = best.CanvasPosition.Y
+        task.delay(0.05, function()
+            if self._destroyed or not best.Parent or not self.App.__instance.Enabled then return end
+            if math.abs(best.CanvasPosition.Y - before) >= 0.5 then return end
+            local maxY = math.max(0, best.AbsoluteCanvasSize.Y - best.AbsoluteWindowSize.Y)
+            best.CanvasPosition = Vector2.new(best.CanvasPosition.X, math.clamp(before - input.Position.Z * 48, 0, maxY))
+        end)
+    end)
+end
+
+-- Mirrors the Cascade sidebar's nested section navigation. The host supplies
+-- section labels, so the library never needs game-specific tab definitions.
+function Staconf:CreateSidebarSections(tab, sections)
+    sections = sections or {}
+    local item = raw(tab and tab.Structures and tab.Structures.Body)
+    local list = raw(self.Window.Structures.SidebarList)
+    if not item or not list then return nil end
+    local container = Instance.new("Frame")
+    container.Name = "SubTabs"
+    container.Size = UDim2.new(1, 0, 0, #sections * 28 + 8)
+    container.BackgroundTransparency = 1
+    container.LayoutOrder = item.LayoutOrder + 1
+    container.Parent = list
+    local padding = Instance.new("UIPadding")
+    padding.PaddingLeft = UDim.new(0, 16)
+    padding.PaddingRight = UDim.new(0, 4)
+    padding.PaddingTop = UDim.new(0, 4)
+    padding.Parent = container
+    local layout = Instance.new("UIListLayout")
+    layout.Padding = UDim.new(0, 2)
+    layout.Parent = container
+    local buttons = {}
+    local function selectButton(selected)
+        for _, button in ipairs(buttons) do
+            local active = button == selected
+            button.BackgroundTransparency = active and 0.6 or 1
+            button.BackgroundColor3 = self.Mode == "Light" and Color3.fromRGB(216, 218, 224) or Color3.fromRGB(50, 54, 68)
+            button.Title.TextColor3 = active and (self.Mode == "Light" and Color3.fromRGB(24, 26, 32) or Color3.new(1, 1, 1))
+                or (self.Mode == "Light" and Color3.fromRGB(108, 113, 125) or Color3.fromRGB(160, 165, 180))
+            button.Indicator.BackgroundColor3 = active and self._accentColor or Color3.fromRGB(100, 105, 120)
+        end
+    end
+    for index, definition in ipairs(sections or {}) do
+        local label = type(definition) == "table" and (definition.Label or definition.Title) or tostring(definition)
+        local target = type(definition) == "table" and (definition.Target or label) or label
+        local button = Instance.new("TextButton")
+        button.Name = "SubTabItem"
+        button.LayoutOrder = index
+        button.Size = UDim2.new(1, 0, 0, 26)
+        button.BackgroundTransparency = 1
+        button.BorderSizePixel = 0
+        button.Text = ""
+        button.AutoButtonColor = false
+        button.Parent = container
+        round(button, 6)
+        local indicator = Instance.new("Frame")
+        indicator.Name = "Indicator"
+        indicator.AnchorPoint = Vector2.new(0.5, 0.5)
+        indicator.Position = UDim2.new(0, 15, 0.5, 0)
+        indicator.Size = UDim2.fromOffset(5, 5)
+        indicator.BorderSizePixel = 0
+        indicator.Parent = button
+        round(indicator, 5)
+        local title = Instance.new("TextLabel")
+        title.Name = "Title"
+        title.Position = UDim2.new(0, 26, 0, 0)
+        title.Size = UDim2.new(1, -30, 1, 0)
+        title.BackgroundTransparency = 1
+        title.Font = Enum.Font.GothamMedium
+        title.TextSize = 13
+        title.TextXAlignment = Enum.TextXAlignment.Left
+        title.Text = tostring(label or target)
+        title.Parent = button
+        table.insert(buttons, button)
+        self:_connect(button.Activated, function()
+            selectButton(button)
+            for _, object in ipairs(self.App.__instance:GetDescendants()) do
+                if object:IsA("ScrollingFrame") and object.Name == "ContentList" and object.Visible then
+                    for _, section in ipairs(object:GetChildren()) do
+                        local heading = section.Name == "PageSection" and section:FindFirstChild("Title", true)
+                        if heading and heading:IsA("TextLabel") and heading.Text == target then
+                            local offset = section.AbsolutePosition.Y - object.AbsolutePosition.Y + object.CanvasPosition.Y
+                            local maxY = math.max(0, object.AbsoluteCanvasSize.Y - object.AbsoluteWindowSize.Y)
+                            TweenService:Create(object, TweenInfo.new(0.3, Enum.EasingStyle.Quart, Enum.EasingDirection.Out),
+                                {CanvasPosition = Vector2.new(0, math.clamp(offset - 8, 0, maxY))}):Play()
+                            return
+                        end
+                    end
+                end
+            end
+        end)
+    end
+    selectButton(buttons[1])
+    return {Root = container, Buttons = buttons}
 end
 
 -- Creates a reusable Cascade-style segmented sub-tab strip. Content and state
