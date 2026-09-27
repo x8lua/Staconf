@@ -39,6 +39,7 @@ See [example.luau](example.luau) for a complete example.
 - `ui:Tooltip(instance, text)` and `ui:AttachTooltips(entries)` add delayed hover cards that are cleaned up with the UI instance.
 - `ui:CreateSubTabs(parent, {Items, Selected, OnSelected})` creates a responsive segmented sub-tab strip. `ui:CreateGlass(instance, options)` applies the portable rounded glass fallback, and `ui:AddTabIntroduction(tab, options)` adds a themed tab header card.
 - `ui:CreateSidebarSections(tab, {{Label, Target}, ...})` adds nested sidebar section links and scrolls the active Cascade page to the matching section title. Chrome also styles late-created controls and preserves vertical scrolling while Shift is held.
+- Toggle controls use the LarpKuran bar treatment: 38x22 rounded track, blue enabled state, dark/light disabled state, and the 20x18 animated white knob while preserving Cascade value callbacks.
 - `ui:BuildUpdateTab({Check, Apply, Version})` renders a neutral `Client Update / Unavailable` page while retaining those callbacks in `ui._updateMechanic` for the host application.
 - `ui:Toggle`, `ui:Slider`, `ui:Dropdown`, `ui:TextField`, `ui:Keybind`, and `ui:Button` add controls to a Cascade Form. Each accepts a section and options table, returning the control and row. Use `OnChange` for value controls and `OnClick` for buttons.
 - `ui:SetVisible(boolean)` hides or shows the window immediately, including blur. `ui:SetTheme(mode, accent)` updates Cascade colors. `ui:Destroy()` releases UI owned by the instance.
