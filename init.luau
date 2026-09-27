@@ -592,7 +592,7 @@ function Staconf:_styleSidebarItem(item)
     end
     if not item:GetAttribute("StaconfStyled") then
         item:SetAttribute("StaconfStyled", true)
-        item:GetPropertyChangedSignal("BackgroundTransparency"):Connect(refresh)
+        self:_connect(item:GetPropertyChangedSignal("BackgroundTransparency"), refresh)
     end
     refresh()
 end
@@ -601,8 +601,13 @@ function Staconf:InstallChrome(options)
     options = options or {}
     if self._destroyed then return end
     self._chromeOptions = options
-    self._applyChrome()
+    self:_applyChrome()
     self:ApplyFont()
+    if self._chromeInstalled then
+        if options.Tooltips then self:AttachTooltips(options.Tooltips) end
+        return self
+    end
+    self._chromeInstalled = true
     local root = self.App.__instance
     for _, object in ipairs(root:GetDescendants()) do
         if object.Name == "SidebarItem" then self:_styleSidebarItem(object) end
