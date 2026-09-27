@@ -1,79 +1,48 @@
 # Staconf
 
-## Settings profiles
+Staconf is a reusable Roblox Luau UI shell built on [Cascade UI](https://github.com/cascadeui/Cascade). It provides a responsive window, boot overlay, notifications, dialogs, and common form controls. Your script owns its tabs, state, and callbacks.
 
-The optional local SF Pro Display font uses the executor workspace files `Stac0nf/fonts/SFPRODISPLAYREGULAR.OTF`, `SFPRODISPLAYMEDIUM.OTF`, and `SFPRODISPLAYBOLD.OTF`. On startup, StacOnf creates `Stac0nf/fonts/SFProDisplay.family.json` using `getcustomasset` and applies it to its UI. If any font or filesystem capability is unavailable, it uses Inter instead. Font files are not included in this repository and are not downloaded from GitHub.
+## Load
 
-The Settings tab supports named local profiles, Save, Load, Refresh, Delete, startup loading, and restoring session defaults. Overwrite, Delete, and Reset require a second click within four seconds. Profile names accept 1–32 ASCII letters, numbers, spaces, hyphens, or underscores.
-
-Profiles store 16 controls, including appearance, hotkey, camera, lighting, movement, and Glass Strength. Settings → Liquid Glass exposes a 1×–20× strength slider with a live multiplier label. The default is 4.5×; strength changes the main window curved lens depth and surface normals. The main window uses restrained translucent dark/light theme tints over a subtle glass layer; individual control cards retain their backgrounds for readability. The lens uses an EditableMesh (434 vertices / 864 triangles), updated only when size, corner radius, or strength changes. Unsupported environments fall back to the supplied glass meshes. Existing profiles without this field leave the current strength unchanged. Loading applies the existing control callbacks. Pointer modal demo controls and account information are not included. Reset restores values captured when this script started; saved profiles are retained.
-
-Curved-glass validation: isolated in-client previews at 1× and 20×, plus a non-refracting material control, used temporary straight background bars at unchanged 0.08 panel transparency. The 20× lens visibly curved the bars at graphics quality 10. Hide/show and teardown passed; temporary geometry was removed. This is not a guarantee of identical results on other graphics settings or executors. The complete application was not re-executed during this test.
-
-Storage uses the executor workspace file `Staconf/settings-v1.json`, with the previous file copied to `Staconf/settings-v1.json.bak` before writes. Requires `readfile`, `writefile`, and `isfile`; folder creation is used when available. Corrupt or unsupported data blocks writes until repaired and refreshed. There is no cloud sync or background autosave.
-
-Validation: 15 isolated Luau tests passed using mock controls and in-memory files, including startup loading and corrupt-file protection. Actual filesystem persistence and Settings layout have not been visually verified. The existing `collectgarbage("collect")` analyzer diagnostic is unrelated to this addition.
-
-Next-Generation Roblox Luau In-Game Console & UI Suite.
-
-Built with an innovative design paradigm: high-contrast **Electric Blue (`#3B82F6`)** accent, decoupled 125% content scaling, embedded auto-revealing Dock with native vector icons, and macOS Sequoia styling.
-
----
-
-## ⚡ Quick Load (UNC Compatible)
-
-### 1. Innovative In-Game Console Deck
-Independent prototype featuring dynamic hover dock, 125% decoupled inner scale, and pure vector icons:
 ```luau
-loadstring(game:HttpGet("https://raw.githubusercontent.com/x8lua/Staconf/main/console_ui_demo.luau"))()
+local Staconf = loadstring(game:HttpGetAsync(
+    "https://raw.githubusercontent.com/x8lua/Staconf/main/init.luau"
+))()
+
+local ui = Staconf.new({Title = "My App", Subtitle = "Example dashboard"})
+ui:RevealBootProgress()
+ui:SetBootProgress(0.4)
+
+local tab = ui:AddTab({Title = "General", Selected = true})
+local section = tab:PageSection({Title = "Controls"}):Form()
+ui:Toggle(section, {
+    Title = "Enabled",
+    Value = false,
+    OnChange = function(value) print("Enabled:", value) end,
+})
+
+ui:SetBootProgress(1)
+ui:FinishBoot()
 ```
 
-### 2. StacOnf Sequoia Deck
-Sequoia-inspired desktop console powered by Cascade UI with Electric Blue contrast accents:
-```luau
-loadstring(game:HttpGet("https://raw.githubusercontent.com/x8lua/Staconf/main/staconf_demo.luau"))()
-```
+See [example.luau](example.luau) for a complete example.
 
-### 3. Universal Entry Loader
-```luau
-loadstring(game:HttpGet("https://raw.githubusercontent.com/x8lua/Staconf/main/init.luau"))()
-```
+## API
 
----
+- `Staconf.new(options)` creates a Cascade window. Options include `Title`, `Subtitle`, `Name`, `Theme` (`Dark` or `Light`), `Accent`, `Size`, `Boot`, `BootImage`, `BootSoundId`, `CacheRoot`, `AssetBaseUrl`, `Cascade`, and `CascadeUrl`. Standard Cascade window options such as `CanExit`, `CanMinimize`, `Resizable`, and `UIBlur` are available.
+- `ui.App`, `ui.Window`, and `ui.Cascade` expose Cascade objects for advanced use.
+- `ui:AddTab(options)` returns a Cascade tab. Use its `PageSection` and other Cascade methods to build content.
+- `ui:ShowBoot()`, `ui:RevealBootProgress()`, `ui:SetBootProgress(fraction)`, and `ui:FinishBoot()` control the optional startup overlay. Progress is a number from `0` to `1`. Set `BootImage` or `BootImageFile` and `BootSoundId` to brand the startup screen.
+- `ui:Notify({Title, Subtitle, Duration})` shows a notification.
+- `ui:Dialog({Title, Description, Modal, Buttons})` shows a dialog. Each button accepts `Text`, `Style`, and `Callback`; the returned object has `Close()`.
+- `ui:Toggle`, `ui:Slider`, `ui:Dropdown`, `ui:TextField`, `ui:Keybind`, and `ui:Button` add controls to a Cascade Form. Each accepts a section and options table, returning the control and row. Use `OnChange` for value controls and `OnClick` for buttons.
+- `ui:SetVisible(boolean)` hides or shows the window immediately, including blur. `ui:SetTheme(mode, accent)` updates Cascade colors. `ui:Destroy()` releases UI owned by the instance.
+- `ui:Asset(fileName)` loads a repository asset through the executor's local asset APIs when available. Set `AssetBaseUrl` and `CacheRoot` to use your own assets.
 
-## 🚀 Key Features
+## Dependencies and assets
 
-### In-Game Console Deck (`console_ui_demo.luau`)
-- **Decoupled 125% Content Scaling**: Physical window frame remains compact at 740×490px while all internal components (cards, sliders, switches, buttons, text) are scaled up by 125% via an inverted canvas architecture.
-- **Embedded Auto-Dock**: Floating bottom navigation bar embedded inside the main window. Sits hidden as a minimal white peekbar handle and smoothly rises with a `Quart` easing when the mouse enters the bottom sensor zone.
-- **Pure Native Vector Icons**: Handcrafted procedural vector geometry for Controls (crosshair), Display (monitor), Audio (equalizer bars), Overview (2×2 grid), and System (microchip).
-- **High-Contrast Dark Theme**: Deep charcoal `#101015` base paired with crisp white labels and vibrant Electric Blue accent highlights.
-- **Zero Library Dependencies**: 100% native Luau implementation.
+The loader fetches the latest Cascade release unless you pass a `Cascade` object or `CascadeUrl`. HTTP and `loadstring` are required when loading remotely. Local asset caching requires `getcustomasset`, `writefile`, and optionally `isfile` and `makefolder`; UI controls still work when these APIs are absent. Roblox Studio can use a supplied Cascade object and Roblox asset IDs.
 
-### StacOnf Sequoia Deck (`staconf_demo.luau`)
-- **macOS Sequoia Window Architecture**: Traffic light window controls, sidebar search above a local Sign in panel, draggable and resizable frames.
-- **Compact Sidebar**: Semibold Inter tab titles, 2px tab gaps, themed sidebar/content surfaces without a seam divider, and one rounded outer clip. Sign in toggles a local demo account only; it does not authenticate or send credentials.
-- **Responsive Pointer Panel**: Inter typography, synchronized theme colors, animated toggles and buttons, and a draggable slider with concise motion feedback.
-- **Multi-Matrix Routing**:
-  - **Runtime Matrix**: Real-time Field of View slider, low-latency render toggles, engine ping, and instant GC memory collector.
-  - **Environment**: Real-time ClockTime scrubber, global shadow switches, and ambient lighting presets.
-  - **Player Dynamics**: WalkSpeed and JumpPower real-time sliders with instant default reset.
-  - **Preferences**: Dynamic Accent color picker (defaults to Electric Blue), theme switching (Dark/Light), and customizable keybinds.
-- **UNC Stealth Protection**: Seamless detection of `gethui()` -> `CoreGui` -> `PlayerGui` with `cloneref` anti-detection layer.
+`assets/fonts/`, the shared glass model, and `assets/info.png` remain in this repository. Other images under `assets/` are retained temporarily because deployed LarpKuran clients still request those URLs. They are compatibility assets, not part of Staconf's public UI API. `assets/LIQUID_GLASS_NOTICE.md` records the glass model's ownership and use.
 
----
-
-## ⌨️ Controls & Shortcuts
-
-| Action | Shortcut |
-| :--- | :--- |
-| Toggle Console / Minimize | `RightControl` |
-| Reveal Embedded Dock | Hover mouse at the bottom edge of the window |
-| Reset Character Attributes | Locomotion -> "Reset to Default" |
-
----
-
-## 🛠️ Requirements & Compatibility
-
-- Compatible with all Level 7/8 UNC executors supporting standard Luau HTTP/loadstring capabilities.
-- Safe fallback support for standard Roblox Studio test environments.
+Staconf does not include account logic, game automation, configuration storage, or a global singleton. The LarpKuran-specific glass renderer, advanced sidebar, notification queue, and keybind conflict policy are not in this module. Call `ui:Destroy()` when your script unloads.
