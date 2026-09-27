@@ -532,10 +532,18 @@ function Staconf:_applyChrome()
     local list = raw(structures.SidebarList)
     if list then
         local layout = list:FindFirstChildOfClass("UIListLayout")
-        if layout then layout.Padding = UDim.new(0, 5) end
+        if layout then layout.Padding = UDim.new(0, 2) end
         for _, item in ipairs(list:GetChildren()) do
             self:_styleSidebarItem(item)
         end
+    end
+    if self._shell then
+        local shell = self._shell
+        shell.Sidebar.BackgroundColor3 = light and Color3.fromRGB(236, 239, 244) or Color3.fromRGB(24, 28, 40)
+        shell.Content.BackgroundColor3 = light and Color3.fromRGB(249, 250, 252) or Color3.fromRGB(17, 20, 30)
+        shell.Search.BackgroundColor3 = light and Color3.fromRGB(247, 248, 250) or Color3.fromRGB(43, 46, 57)
+        shell.ProfileTitle.TextColor3 = light and Color3.fromRGB(37, 40, 48) or Color3.fromRGB(244, 245, 249)
+        shell.ProfileSubtitle.TextColor3 = light and Color3.fromRGB(108, 113, 125) or Color3.fromRGB(169, 174, 189)
     end
 end
 
@@ -597,10 +605,127 @@ function Staconf:_styleSidebarItem(item)
     refresh()
 end
 
+function Staconf:_installShell(options)
+    if self._shell then return true end
+    local structures = self.Window.Structures
+    local body = raw(structures.Body)
+    local sidebar = raw(structures.SidebarMargins)
+    local margins = raw(structures.Sidebar)
+    local content = raw(structures.ContentBody)
+    local page = raw(structures.Content)
+    local list = raw(structures.SidebarList)
+    local ignore = raw(structures.LayoutIgnore)
+    local search = structures.Titlebar and structures.Titlebar.SearchField
+    local searchBody = search and raw(search.Body)
+    if not (body and sidebar and margins and content and page and list and ignore and searchBody) then return false end
+
+    local surface = Instance.new("CanvasGroup")
+    surface.Name = "ChromeSurface"
+    surface.Size = UDim2.fromScale(1, 1)
+    surface.BackgroundTransparency = 1
+    surface.BorderSizePixel = 0
+    surface.ClipsDescendants = false
+    surface.Parent = ignore
+    round(surface, 22)
+    local surfaceScale = Instance.new("UIScale")
+    surfaceScale.Name = "ResponsiveChromeScale"
+    surfaceScale.Parent = surface
+    local layout = body:FindFirstChildOfClass("UIListLayout")
+    if layout then layout.Parent = surface end
+    sidebar.Parent = surface
+    content.Parent = surface
+    local separator = raw(structures.Separator)
+    if separator then separator.Parent = surface; separator.Visible = false end
+    body.BackgroundTransparency = 1
+
+    searchBody.Name = "SidebarSearch"
+    searchBody.Parent = margins
+    searchBody.AutomaticSize = Enum.AutomaticSize.None
+    searchBody.Position = UDim2.fromOffset(12, 52)
+    searchBody.Size = UDim2.new(1, -24, 0, UserInputService.TouchEnabled and 44 or 32)
+    local searchCorner = searchBody:FindFirstChildOfClass("UICorner")
+    if searchCorner then searchCorner.CornerRadius = UDim.new(0, 24) end
+    local searchField = raw(search.Field)
+    if searchField then searchField.Size = UDim2.new(1, -28, 1, 0); searchField.TextSize = 14 end
+    local searchLayout = searchBody:FindFirstChildOfClass("UIListLayout")
+    if searchLayout then searchLayout.Padding = UDim.new(0, 6); searchLayout.VerticalAlignment = Enum.VerticalAlignment.Center end
+    local searchPadding = searchBody:FindFirstChildOfClass("UIPadding")
+    if searchPadding then
+        searchPadding.PaddingLeft = UDim.new(0, 10)
+        searchPadding.PaddingRight = UDim.new(0, 10)
+    end
+
+    local profile = Instance.new("TextButton")
+    profile.Name = "ProfilePanel"
+    profile.Position = UDim2.fromOffset(12, UserInputService.TouchEnabled and 104 or 94)
+    profile.Size = UDim2.new(1, -24, 0, 56)
+    profile.BackgroundTransparency = 1
+    profile.BorderSizePixel = 0
+    profile.AutoButtonColor = false
+    profile.Text = ""
+    profile.Parent = margins
+    round(profile, 10)
+    local avatar = Instance.new("ImageLabel")
+    avatar.Name = "Avatar"
+    avatar.Position = UDim2.fromOffset(6, 11)
+    avatar.Size = UDim2.fromOffset(34, 34)
+    avatar.BackgroundTransparency = 1
+    local player = game:GetService("Players").LocalPlayer
+    avatar.Image = player and ("rbxthumb://type=AvatarHeadShot&id=" .. player.UserId .. "&w=150&h=150") or ""
+    avatar.Parent = profile
+    round(avatar, 17)
+    local function profileText(name, value, y, size)
+        local label = Instance.new("TextLabel")
+        label.Name = name
+        label.Position = UDim2.fromOffset(50, y)
+        label.Size = UDim2.new(1, -54, 0, 20)
+        label.BackgroundTransparency = 1
+        label.Font = name == "Title" and Enum.Font.GothamBold or Enum.Font.Gotham
+        label.TextSize = size
+        label.TextXAlignment = Enum.TextXAlignment.Left
+        label.TextTruncate = Enum.TextTruncate.AtEnd
+        label.Text = value
+        label.Parent = profile
+        return label
+    end
+    local title = profileText("Title", options.ProfileTitle or (player and player.DisplayName) or "Guest", 7, 15)
+    local subtitle = profileText("Subtitle", options.ProfileSubtitle or (player and ("@" .. player.Name)) or "Profile", 27, 11)
+    profile.Active = type(options.OnProfile) == "function"
+    if profile.Active then self:_connect(profile.Activated, options.OnProfile) end
+    self:_connect(profile.MouseEnter, function()
+        if profile.Active then profile.BackgroundTransparency = 0.94 end
+    end)
+    self:_connect(profile.MouseLeave, function() profile.BackgroundTransparency = 1 end)
+
+    local function align()
+        if self._destroyed or not body.Parent then return end
+        local size = body.AbsoluteSize
+        if size.X < 1 or size.Y < 1 then return end
+        local scale = UserInputService.TouchEnabled and 1 or math.clamp(math.min(size.X / 800, size.Y / 520), 0.8, 1)
+        local logicalWidth, logicalHeight = size.X / scale, size.Y / scale
+        surfaceScale.Scale = scale
+        local sidebarWidth = math.clamp(math.floor(logicalWidth * 0.34), 150, 230)
+        sidebar.Size = UDim2.fromOffset(sidebarWidth, logicalHeight)
+        margins.Size = UDim2.fromOffset(sidebarWidth, logicalHeight)
+        content.Size = UDim2.fromOffset(math.max(0, logicalWidth - sidebarWidth), logicalHeight)
+        page.Size = UDim2.new(1, 0, 1, -52)
+        list.Position = UDim2.fromOffset(0, UserInputService.TouchEnabled and 168 or 158)
+        list.Size = UDim2.new(1, 0, 1, -(UserInputService.TouchEnabled and 176 or 166))
+        surface.Size = UDim2.fromOffset(logicalWidth, logicalHeight)
+    end
+    self._shell = {Surface = surface, Sidebar = sidebar, Content = content, Search = searchBody,
+        Profile = profile, ProfileTitle = title, ProfileSubtitle = subtitle}
+    self:_connect(body:GetPropertyChangedSignal("AbsoluteSize"), align)
+    task.defer(align)
+    return true
+end
+
 function Staconf:InstallChrome(options)
     options = options or {}
     if self._destroyed then return end
     self._chromeOptions = options
+    local installed = self:_installShell(options)
+    if not installed and not self._shell then warn("Staconf: Cascade shell structure unavailable") end
     self:_applyChrome()
     self:ApplyFont()
     if self._chromeInstalled then

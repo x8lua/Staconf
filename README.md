@@ -35,7 +35,7 @@ See [example.luau](example.luau) for a complete example.
 - `ui:ShowBoot()`, `ui:RevealBootProgress()`, `ui:SetBootProgress(fraction)`, and `ui:FinishBoot()` control the optional startup overlay. Progress is a number from `0` to `1`. Set `BootImage` or `BootImageFile` and `BootSoundId` to brand the startup screen.
 - `ui:Notify({Title, Subtitle, Duration})` shows a notification.
 - `ui:Dialog({Title, Description, Modal, Buttons})` shows a dialog. Each button accepts `Text`, `Style`, and `Callback`; the returned object has `Close()`.
-- `ui:InstallChrome({Tooltips = {[instance] = "..."}})` applies the Cascade sidebar, typography, mobile sizing, and late-created tab styling. `ui:LoadFontFamily()` and `ui:ApplyFont()` load the bundled font family when executor asset APIs are available.
+- `ui:InstallChrome({ProfileTitle, ProfileSubtitle, OnProfile, Tooltips})` applies the Cascade-derived window shell, moves search into the sidebar, shows a profile panel, and styles late-created controls. It runs automatically unless `Chrome = false`. `ui:LoadFontFamily()` and `ui:ApplyFont()` load the bundled font family when executor asset APIs are available.
 - `ui:Tooltip(instance, text)` and `ui:AttachTooltips(entries)` add delayed hover cards that are cleaned up with the UI instance.
 - `ui:CreateSubTabs(parent, {Items, Selected, OnSelected})` creates a responsive segmented sub-tab strip. `ui:CreateGlass(instance, options)` applies the portable rounded glass fallback, and `ui:AddTabIntroduction(tab, options)` adds a themed tab header card.
 - `ui:CreateSidebarSections(tab, {{Label, Target}, ...})` adds nested sidebar section links and scrolls the active Cascade page to the matching section title. Chrome also styles late-created controls and preserves vertical scrolling while Shift is held.
@@ -50,4 +50,4 @@ The loader fetches the latest Cascade release unless you pass a `Cascade` object
 
 `assets/fonts/`, the shared glass model, and `assets/info.png` remain in this repository. Other images under `assets/` are retained temporarily because deployed LarpKuran clients still request those URLs. They are compatibility assets, not part of Staconf's public UI API. `assets/LIQUID_GLASS_NOTICE.md` records the glass model's ownership and use.
 
-Staconf does not include account logic, game automation, configuration storage, or a global singleton. The LarpKuran-specific glass renderer, advanced sidebar, notification queue, and keybind conflict policy are not in this module. Call `ui:Destroy()` when your script unloads.
+Staconf does not include account logic, game automation, configuration storage, or a global singleton. The profile panel is visual only unless `OnProfile` is supplied. LarpKuran-specific rendering and keybind conflict policy remain in the host application. Call `ui:Destroy()` when your script unloads.
