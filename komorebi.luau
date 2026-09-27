@@ -35,9 +35,12 @@ local aimAssistActive = false
 local aimConn = nil
 
 local autoParryActive = false
-local parryRange = 14
+local parryRange = 11
+local parryAngle = 70
+local parryLeadMs = 60
 local parryHoldMs = 240
 local lastParryTime = 0
+local recentParryTokens = {}
 
 local autoSharpenActive = false
 local autoMopActive = false
@@ -50,9 +53,30 @@ local staffAutoLeaveActive = false
 local toggleKey = Enum.KeyCode.RightControl
 local isVisible = true
 
+local validAttackMoves = {
+	M1 = true,
+	M2 = true,
+	M3 = true,
+	M4 = true,
+	Super = true,
+	Dropkick = true,
+	Heavy = true,
+	Light = true,
+	Ability = true,
+	Smash = true
+}
+
+local knownAttackAnimIds = {
+	["132696391693783"] = true,
+	["140627732661032"] = true,
+	["84854874738019"] = true,
+	["136863484307793"] = true,
+	["103893003384506"] = true
+}
+
 local function triggerParry()
 	local now = os.clock()
-	if now - lastParryTime < 0.35 then return end
+	if now - lastParryTime < 0.28 then return end
 	lastParryTime = now
 	pcall(function()
 		VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.F, false, game)
@@ -192,19 +216,51 @@ local combatFeedback = combatRemotes and combatRemotes:FindFirstChild("CombatFee
 if combatFeedback then
 	local fbConn = combatFeedback.OnClientEvent:Connect(function(event, data)
 		if not autoParryActive then return end
-		if event == "StyleVisual" and typeof(data) == "table" then
-			if data.Cue == "Action" and data.Character and data.Character ~= Players.LocalPlayer.Character then
-				local eChar = data.Character
-				local eHrp = eChar:FindFirstChild("HumanoidRootPart")
-				local myChar = Players.LocalPlayer.Character
-				local myHrp = myChar and myChar:FindFirstChild("HumanoidRootPart")
-				if eHrp and myHrp then
-					local dist = (eHrp.Position - myHrp.Position).Magnitude
-					if dist <= parryRange then
+		if event ~= "StyleVisual" or typeof(data) ~= "table" or data.Cue ~= "Action" then return end
+		local eChar = data.Character
+		local lp = Players.LocalPlayer
+		local myChar = lp and lp.Character
+		if not eChar or eChar == myChar then return end
+		if myChar:GetAttribute("NG_Dead") == true or myChar:GetAttribute("NG_Knocked") == true then return end
+		local move = tostring(data.Move or "")
+		if not validAttackMoves[move] and not move:find("M%d") and not move:find("Punch") and not move:find("Attack") then
+			return
+		end
+		local eHrp = eChar:FindFirstChild("HumanoidRootPart")
+		local myHrp = myChar and myChar:FindFirstChild("HumanoidRootPart")
+		if not eHrp or not myHrp then return end
+		local dir = myHrp.Position - eHrp.Position
+		local dist = dir.Magnitude
+		if dist > parryRange then return end
+		local flatDir = Vector3.new(dir.X, 0, dir.Z)
+		if flatDir.Magnitude < 0.05 then return end
+		flatDir = flatDir.Unit
+		local look = Vector3.new(eHrp.CFrame.LookVector.X, 0, eHrp.CFrame.LookVector.Z).Unit
+		local minDot = math.cos(math.rad(parryAngle))
+		if look:Dot(flatDir) < minDot then return end
+		local token = tostring(data.ActionToken or data.ClientActionId or (eChar.Name .. ":" .. move .. ":" .. tostring(data.ExpectedContactAt)))
+		if recentParryTokens[token] then return end
+		recentParryTokens[token] = true
+		task.delay(0.6, function()
+			recentParryTokens[token] = nil
+		end)
+		local now = workspace:GetServerTimeNow()
+		local contactAt = tonumber(data.ExpectedContactAt)
+		local waitSeconds = 0
+		if contactAt and contactAt > now then
+			waitSeconds = math.clamp(contactAt - now - (parryLeadMs / 1000), 0, 0.45)
+		end
+		if waitSeconds <= 0.01 then
+			triggerParry()
+		else
+			task.delay(waitSeconds, function()
+				if autoParryActive and eChar.Parent and myChar.Parent then
+					local curDist = (myHrp.Position - eHrp.Position).Magnitude
+					if curDist <= parryRange + 2 then
 						triggerParry()
 					end
 				end
-			end
+			end)
 		end
 	end)
 	addConnection(fbConn)
@@ -212,27 +268,38 @@ end
 
 local animScanConn = RunService.Heartbeat:Connect(function()
 	if not autoParryActive then return end
-	local myChar = Players.LocalPlayer.Character
+	local lp = Players.LocalPlayer
+	local myChar = lp and lp.Character
 	local myHrp = myChar and myChar:FindFirstChild("HumanoidRootPart")
-	if not myHrp then return end
+	if not myHrp or myChar:GetAttribute("NG_Dead") == true or myChar:GetAttribute("NG_Knocked") == true then return end
 	for _, plr in ipairs(Players:GetPlayers()) do
-		if plr ~= Players.LocalPlayer and plr.Character then
+		if plr ~= lp and plr.Character then
 			local eChar = plr.Character
 			local eHrp = eChar:FindFirstChild("HumanoidRootPart")
 			local eHum = eChar:FindFirstChildOfClass("Humanoid")
 			if eHrp and eHum and eHum.Health > 0 and eChar:GetAttribute("NG_Dead") ~= true and eChar:GetAttribute("NG_Knocked") ~= true then
-				local dist = (eHrp.Position - myHrp.Position).Magnitude
+				local dir = myHrp.Position - eHrp.Position
+				local dist = dir.Magnitude
 				if dist <= parryRange then
-					local animator = eHum:FindFirstChildOfClass("Animator")
-					if animator then
-						for _, track in ipairs(animator:GetPlayingAnimationTracks()) do
-							local p = track.Priority
-							if p == Enum.AnimationPriority.Action or p == Enum.AnimationPriority.Action2 or p == Enum.AnimationPriority.Action3 or p == Enum.AnimationPriority.Action4 then
-								local name = track.Name:lower()
-								if not (name:find("idle") or name:find("walk") or name:find("run") or name:find("fall") or name:find("jump") or name:find("crouch") or name:find("prone")) then
-									if track.TimePosition <= 0.22 then
-										triggerParry()
-										break
+					local flatDir = Vector3.new(dir.X, 0, dir.Z)
+					if flatDir.Magnitude >= 0.05 then
+						flatDir = flatDir.Unit
+						local look = Vector3.new(eHrp.CFrame.LookVector.X, 0, eHrp.CFrame.LookVector.Z).Unit
+						local minDot = math.cos(math.rad(parryAngle))
+						if look:Dot(flatDir) >= minDot then
+							local animator = eHum:FindFirstChildOfClass("Animator")
+							if animator then
+								for _, track in ipairs(animator:GetPlayingAnimationTracks()) do
+									local anim = track.Animation
+									local id = anim and anim.AnimationId:match("%d+")
+									if id and knownAttackAnimIds[id] then
+										local token = eChar.Name .. ":" .. id .. ":" .. tostring(math.floor(track.TimePosition * 10))
+										if not recentParryTokens[token] and track.TimePosition <= 0.16 then
+											recentParryTokens[token] = true
+											task.delay(0.5, function() recentParryTokens[token] = nil end)
+											triggerParry()
+											break
+										end
 									end
 								end
 							end
@@ -293,6 +360,7 @@ local function cleanupAll()
 		pcall(function() c:Disconnect() end)
 	end
 	connections = {}
+	recentParryTokens = {}
 	setFlight(false)
 	setAimAssist(false)
 	autoParryActive = false
@@ -485,7 +553,7 @@ ui:Toggle(combatTarget, {
 
 ui:Toggle(combatDefense, {
 	Title = "Auto Parry",
-	Subtitle = "Automatic perfect block on incoming enemy strikes",
+	Subtitle = "Parry real strikes directly targeting you",
 	Value = false,
 	OnChange = function(v)
 		autoParryActive = v
@@ -494,12 +562,34 @@ ui:Toggle(combatDefense, {
 
 ui:Slider(combatDefense, {
 	Title = "Parry Range",
-	Subtitle = "Strike detection sphere radius in studs",
+	Subtitle = "Maximum attacker distance in studs",
 	Minimum = 6,
-	Maximum = 24,
-	Value = 14,
+	Maximum = 18,
+	Value = 11,
 	OnChange = function(v)
 		parryRange = v
+	end
+})
+
+ui:Slider(combatDefense, {
+	Title = "Facing Cone Angle",
+	Subtitle = "Attacker front directional cone in degrees",
+	Minimum = 30,
+	Maximum = 110,
+	Value = 70,
+	OnChange = function(v)
+		parryAngle = v
+	end
+})
+
+ui:Slider(combatDefense, {
+	Title = "Parry Lead Time",
+	Subtitle = "Trigger offset before contact in milliseconds",
+	Minimum = 10,
+	Maximum = 120,
+	Value = 60,
+	OnChange = function(v)
+		parryLeadMs = v
 	end
 })
 
