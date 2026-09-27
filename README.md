@@ -25,7 +25,7 @@ ui:SetBootProgress(1)
 ui:FinishBoot()
 ```
 
-See [example.luau](example.luau) for a basic example and [komorebi.luau](komorebi.luau) for a complete production game console deck.
+See [example.luau](example.luau) for a complete example.
 
 ## API
 
