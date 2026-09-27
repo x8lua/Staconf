@@ -3,6 +3,7 @@ local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local HttpService = game:GetService("HttpService")
+local VirtualInputManager = game:GetService("VirtualInputManager")
 
 local Staconf
 if type(readfile) == "function" and type(isfile) == "function" and isfile("init.luau") then
@@ -33,6 +34,11 @@ local flightConn = nil
 local aimAssistActive = false
 local aimConn = nil
 
+local autoParryActive = false
+local parryRange = 14
+local parryHoldMs = 240
+local lastParryTime = 0
+
 local autoSharpenActive = false
 local autoMopActive = false
 local autoWorkoutActive = false
@@ -43,6 +49,20 @@ local staffAutoLeaveActive = false
 
 local toggleKey = Enum.KeyCode.RightControl
 local isVisible = true
+
+local function triggerParry()
+	local now = os.clock()
+	if now - lastParryTime < 0.35 then return end
+	lastParryTime = now
+	pcall(function()
+		VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.F, false, game)
+		task.delay(parryHoldMs / 1000, function()
+			pcall(function()
+				VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.F, false, game)
+			end)
+		end)
+	end)
+end
 
 local function isPlayerStaff(plr)
 	if not plr then return false end
@@ -167,6 +187,64 @@ local function setAimAssist(enabled)
 	end)
 end
 
+local combatRemotes = ReplicatedStorage:FindFirstChild("CombatRemotes")
+local combatFeedback = combatRemotes and combatRemotes:FindFirstChild("CombatFeedback")
+if combatFeedback then
+	local fbConn = combatFeedback.OnClientEvent:Connect(function(event, data)
+		if not autoParryActive then return end
+		if event == "StyleVisual" and typeof(data) == "table" then
+			if data.Cue == "Action" and data.Character and data.Character ~= Players.LocalPlayer.Character then
+				local eChar = data.Character
+				local eHrp = eChar:FindFirstChild("HumanoidRootPart")
+				local myChar = Players.LocalPlayer.Character
+				local myHrp = myChar and myChar:FindFirstChild("HumanoidRootPart")
+				if eHrp and myHrp then
+					local dist = (eHrp.Position - myHrp.Position).Magnitude
+					if dist <= parryRange then
+						triggerParry()
+					end
+				end
+			end
+		end
+	end)
+	addConnection(fbConn)
+end
+
+local animScanConn = RunService.Heartbeat:Connect(function()
+	if not autoParryActive then return end
+	local myChar = Players.LocalPlayer.Character
+	local myHrp = myChar and myChar:FindFirstChild("HumanoidRootPart")
+	if not myHrp then return end
+	for _, plr in ipairs(Players:GetPlayers()) do
+		if plr ~= Players.LocalPlayer and plr.Character then
+			local eChar = plr.Character
+			local eHrp = eChar:FindFirstChild("HumanoidRootPart")
+			local eHum = eChar:FindFirstChildOfClass("Humanoid")
+			if eHrp and eHum and eHum.Health > 0 and eChar:GetAttribute("NG_Dead") ~= true and eChar:GetAttribute("NG_Knocked") ~= true then
+				local dist = (eHrp.Position - myHrp.Position).Magnitude
+				if dist <= parryRange then
+					local animator = eHum:FindFirstChildOfClass("Animator")
+					if animator then
+						for _, track in ipairs(animator:GetPlayingAnimationTracks()) do
+							local p = track.Priority
+							if p == Enum.AnimationPriority.Action or p == Enum.AnimationPriority.Action2 or p == Enum.AnimationPriority.Action3 or p == Enum.AnimationPriority.Action4 then
+								local name = track.Name:lower()
+								if not (name:find("idle") or name:find("walk") or name:find("run") or name:find("fall") or name:find("jump") or name:find("crouch") or name:find("prone")) then
+									if track.TimePosition <= 0.22 then
+										triggerParry()
+										break
+									end
+								end
+							end
+						end
+					end
+				end
+			end
+		end
+	end
+end)
+addConnection(animScanConn)
+
 task.spawn(function()
 	while appAlive do
 		task.wait(1.5)
@@ -217,6 +295,7 @@ local function cleanupAll()
 	connections = {}
 	setFlight(false)
 	setAimAssist(false)
+	autoParryActive = false
 	local lp = Players.LocalPlayer
 	if lp then
 		pcall(function()
@@ -391,6 +470,7 @@ ui:SetBootProgress(0.8)
 
 local combatTab = ui:AddTab({Title = "Combat"})
 local combatTarget = combatTab:PageSection({Title = "Targeting"}):Form()
+local combatDefense = combatTab:PageSection({Title = "Defense & Counters"}):Form()
 local combatSkills = combatTab:PageSection({Title = "Stance & Skills"}):Form()
 local combatFinisher = combatTab:PageSection({Title = "Finisher"}):Form()
 
@@ -400,6 +480,37 @@ ui:Toggle(combatTarget, {
 	Value = false,
 	OnChange = function(v)
 		setAimAssist(v)
+	end
+})
+
+ui:Toggle(combatDefense, {
+	Title = "Auto Parry",
+	Subtitle = "Automatic perfect block on incoming enemy strikes",
+	Value = false,
+	OnChange = function(v)
+		autoParryActive = v
+	end
+})
+
+ui:Slider(combatDefense, {
+	Title = "Parry Range",
+	Subtitle = "Strike detection sphere radius in studs",
+	Minimum = 6,
+	Maximum = 24,
+	Value = 14,
+	OnChange = function(v)
+		parryRange = v
+	end
+})
+
+ui:Slider(combatDefense, {
+	Title = "Parry Hold Window",
+	Subtitle = "Block duration in milliseconds",
+	Minimum = 150,
+	Maximum = 350,
+	Value = 240,
+	OnChange = function(v)
+		parryHoldMs = v
 	end
 })
 
